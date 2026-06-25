@@ -1,0 +1,155 @@
+@import "tailwindcss";
+
+/*
+  SquatchScout brand design tokens.
+  Colors picked from the logo. Foreground choices are WCAG-AA considered:
+  - Primary orange (#F47C20) pairs with near-black ink text (≈6.4:1), not white
+    (white-on-orange is only ≈2.7:1 and fails AA).
+  - The secondary "button green" is a deepened sage (#5F6B47) so white text
+    passes (≈5.8:1); the brighter sage (#879068) is reserved for soft accents,
+    badges and illustration where contrast is not load-bearing.
+*/
+
+@theme {
+  /* Brand neutrals */
+  --color-cream: #fce5c4;
+  --color-cream-soft: #fdf1de;
+  --color-ink: #1a1a1a;
+  --color-ink-soft: #45433f;
+
+  /* Brand orange */
+  --color-orange: #f47c20;
+  --color-orange-dark: #d9610a;
+  --color-orange-soft: #ffe9d5;
+
+  /* Brand sage */
+  --color-sage: #879068;
+  --color-sage-dark: #5f6b47;
+  --color-sage-soft: #edf0e6;
+
+  /* Semantic tokens (used by the component library) */
+  --color-background: #ffffff;
+  --color-foreground: #1a1a1a;
+  --color-card: #ffffff;
+  --color-card-foreground: #1a1a1a;
+  --color-muted: #f5f1e9;
+  --color-muted-foreground: #6b675f;
+  --color-border: #e9e2d4;
+  --color-input: #e9e2d4;
+  --color-ring: #f47c20;
+
+  --color-primary: #f47c20;
+  --color-primary-foreground: #1a1a1a;
+  --color-secondary: #5f6b47;
+  --color-secondary-foreground: #ffffff;
+  --color-accent: #fde6cb;
+  --color-accent-foreground: #1a1a1a;
+  --color-destructive: #c0341a;
+  --color-destructive-foreground: #ffffff;
+  --color-success: #2f7d4f;
+  --color-warning: #b87503;
+
+  /* Typography */
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-poppins), var(--font-inter), ui-sans-serif, sans-serif;
+
+  /* Radius scale — generous, rounded brand feel */
+  --radius: 0.85rem;
+  --radius-sm: 0.55rem;
+  --radius-lg: 1.15rem;
+  --radius-xl: 1.6rem;
+
+  /* Soft brand shadows */
+  --shadow-soft: 0 4px 24px -8px rgba(26, 26, 26, 0.14);
+  --shadow-card: 0 2px 14px -6px rgba(26, 26, 26, 0.12);
+  --shadow-lift: 0 18px 40px -16px rgba(244, 124, 32, 0.35);
+}
+
+@layer base {
+  * {
+    border-color: var(--color-border);
+  }
+
+  html {
+    scroll-behavior: smooth;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    background: var(--color-background);
+    color: var(--color-foreground);
+    font-family: var(--font-sans);
+    font-feature-settings: "cv11", "ss01";
+    text-rendering: optimizeLegibility;
+  }
+
+  h1, h2, h3, h4, h5 {
+    font-family: var(--font-display);
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    text-wrap: balance;
+  }
+
+  /* Visible, on-brand focus ring for keyboard users (accessibility) */
+  :where(a, button, input, textarea, select, [tabindex]):focus-visible {
+    outline: 2px solid var(--color-ring);
+    outline-offset: 2px;
+    border-radius: var(--radius-sm);
+  }
+
+  ::selection {
+    background: var(--color-orange-soft);
+    color: var(--color-ink);
+  }
+}
+
+@layer components {
+  /* Warm cream section background used across landing/marketing pages */
+  .bg-camp {
+    background:
+      radial-gradient(1100px 480px at 100% -10%, rgba(244, 124, 32, 0.10), transparent 60%),
+      radial-gradient(900px 420px at -10% 110%, rgba(135, 144, 104, 0.12), transparent 60%),
+      var(--color-cream-soft);
+  }
+
+  /* Subtle "scout trail" dotted texture */
+  .trail-dots {
+    background-image: radial-gradient(rgba(26, 26, 26, 0.06) 1.5px, transparent 1.5px);
+    background-size: 22px 22px;
+  }
+}
+
+@layer utilities {
+  .animate-in-up {
+    animation: ss-in-up 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+  @keyframes ss-in-up {
+    from { opacity: 0; transform: translateY(14px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  /* Skeleton shimmer for loading states */
+  .skeleton {
+    background: linear-gradient(
+      100deg,
+      var(--color-muted) 30%,
+      rgba(255, 255, 255, 0.6) 50%,
+      var(--color-muted) 70%
+    );
+    background-size: 200% 100%;
+    animation: ss-shimmer 1.3s ease-in-out infinite;
+  }
+  @keyframes ss-shimmer {
+    from { background-position: 200% 0; }
+    to { background-position: -200% 0; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.001ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.001ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
