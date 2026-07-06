@@ -85,9 +85,12 @@ export async function payBooking(_prev: PayState, formData: FormData): Promise<P
     metadata: { booking_id: booking.id, customer_id: userId },
   });
 
-  // Record payment + advance booking using the trusted server (service-role) client.
+  // Record payment + advance booking using the trusted server (service-role)
+  // client. Every write is checked: the charge has already succeeded by this
+  // point, so a silent failure here would strand a paid booking with no
+  // payment record (exactly what the missing service_role grants caused).
   const admin = createAdminClient();
-  await admin.from("payments").insert({
+  const { error: paymentErr } = await admin.from("payments").insert({
     booking_id: booking.id,
     customer_id: userId,
     contractor_id: booking.contractor_id,
@@ -100,8 +103,12 @@ export async function payBooking(_prev: PayState, formData: FormData): Promise<P
     status: "paid",
     paid_at: new Date().toISOString(),
   });
+  if (paymentErr) {
+    console.error(`payBooking: payment insert failed for booking ${booking.id} (charge ${charge.id}):`, paymentErr);
+    return { error: "Your payment went through but we hit a snag recording it. Don't pay again — contact support with your booking number." };
+  }
 
-  await admin
+  const { error: bookingErr } = await admin
     .from("bookings")
     .update({
       status: "scheduled",
@@ -111,19 +118,31 @@ export async function payBooking(_prev: PayState, formData: FormData): Promise<P
       contractor_payout: payout,
     })
     .eq("id", booking.id);
+  if (bookingErr) {
+    console.error(`payBooking: booking update failed for booking ${booking.id} (charge ${charge.id}):`, bookingErr);
+    return { error: "Your payment went through but the booking didn't update. Don't pay again — contact support with your booking number." };
+  }
 
   if (promoCode) {
-    const { data: p } = await admin
+    const { data: p, error: promoReadErr } = await admin
       .from("promo_codes")
       .select("id, used_count")
       .eq("code", promoCode)
       .maybeSingle();
+    if (promoReadErr) {
+      console.error(`payBooking: promo lookup failed for code ${promoCode}:`, promoReadErr);
+    }
     const promo = p as { id: string; used_count: number } | null;
     if (promo) {
-      await admin
+      const { error: promoErr } = await admin
         .from("promo_codes")
         .update({ used_count: (promo.used_count ?? 0) + 1 })
         .eq("id", promo.id);
+      if (promoErr) {
+        // Payment + booking are already consistent; a missed usage bump
+        // shouldn't fail the customer's checkout. Log it loudly instead.
+        console.error(`payBooking: promo used_count bump failed for code ${promoCode}:`, promoErr);
+      }
     }
   }
 

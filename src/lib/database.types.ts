@@ -1158,7 +1158,54 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      reviews_public: {
+        Row: {
+          booking_id: string | null
+          comment: string | null
+          contractor_id: string | null
+          contractor_reply: string | null
+          created_at: string | null
+          customer_display_name: string | null
+          id: string | null
+          rating: number | null
+        }
+        Insert: {
+          booking_id?: string | null
+          comment?: string | null
+          contractor_id?: string | null
+          contractor_reply?: string | null
+          created_at?: string | null
+          customer_display_name?: string | null
+          id?: string | null
+          rating?: number | null
+        }
+        Update: {
+          booking_id?: string | null
+          comment?: string | null
+          contractor_id?: string | null
+          contractor_reply?: string | null
+          created_at?: string | null
+          customer_display_name?: string | null
+          id?: string | null
+          rating?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reviews_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: true
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reviews_contractor_id_fkey"
+            columns: ["contractor_id"]
+            isOneToOne: false
+            referencedRelation: "contractor_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
       auth_role: {

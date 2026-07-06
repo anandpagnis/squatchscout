@@ -140,8 +140,10 @@ export async function getContractorReviews(
   limit = 20,
 ): Promise<Review[]> {
   const supabase = await createClient();
+  // Public discovery read — the base reviews table is party/admin-only now;
+  // this column-safe view omits the private reverse (pro→customer) rating.
   const { data } = await supabase
-    .from("reviews")
+    .from("reviews_public")
     .select("id, booking_id, rating, comment, customer_display_name, contractor_reply, created_at")
     .eq("contractor_id", contractorId)
     .order("created_at", { ascending: false })
