@@ -90,8 +90,16 @@ export function SignupForm({ defaultRole = "customer" }: { defaultRole?: Role })
 
       <p className="text-center text-xs text-muted-foreground">
         By continuing you agree to our{" "}
-        <a href="/legal/terms" className="underline">Terms</a> and{" "}
-        <a href="/legal/privacy" className="underline">Privacy Policy</a>.
+        {process.env.NEXT_PUBLIC_DEMO_MODE === "true" ? (
+          // Demo mode: legal pages still carry placeholder copy, so render
+          // the fine print unlinked (see site-footer.tsx for the same gate).
+          <>Terms and Privacy Policy.</>
+        ) : (
+          <>
+            <a href="/legal/terms" className="underline">Terms</a> and{" "}
+            <a href="/legal/privacy" className="underline">Privacy Policy</a>.
+          </>
+        )}
       </p>
     </div>
   );
