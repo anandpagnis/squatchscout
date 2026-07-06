@@ -12,7 +12,10 @@
     "db:stop": "supabase stop",
     "db:reset": "supabase db reset",
     "db:status": "supabase status",
-    "gen:types": "supabase gen types typescript --local > src/lib/database.types.ts"
+    "gen:types": "supabase gen types typescript --local > src/lib/database.types.ts",
+    "smoke:rls": "node scripts/verify-rls.mjs",
+    "smoke:checkout": "node scripts/verify-checkout.mjs",
+    "smoke:pages": "node scripts/verify-pages.mjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.4.0",

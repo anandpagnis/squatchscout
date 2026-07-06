@@ -3,6 +3,10 @@ import { Logo } from "@/components/brand/logo";
 import { CATEGORIES } from "@/lib/catalog";
 import { brand } from "@/lib/brand";
 
+// Demo mode hides links to pages with placeholder content (blog, legal).
+// The pages themselves stay routable — flip the env var to bring them back.
+const DEMO_MODE = process.env.NEXT_PUBLIC_DEMO_MODE === "true";
+
 export function SiteFooter() {
   return (
     <footer className="border-t border-border bg-cream-soft">
@@ -28,13 +32,17 @@ export function SiteFooter() {
             <FooterLink href="/about">About</FooterLink>
             <FooterLink href="/for-contractors">Become a pro</FooterLink>
             <FooterLink href="/pricing">Pricing & fees</FooterLink>
-            <FooterLink href="/blog">Blog</FooterLink>
+            {!DEMO_MODE && <FooterLink href="/blog">Blog</FooterLink>}
             <FooterLink href="/contact">Contact</FooterLink>
           </FooterCol>
 
           <FooterCol title="Legal">
-            <FooterLink href="/legal/terms">Terms</FooterLink>
-            <FooterLink href="/legal/privacy">Privacy</FooterLink>
+            {!DEMO_MODE && (
+              <>
+                <FooterLink href="/legal/terms">Terms</FooterLink>
+                <FooterLink href="/legal/privacy">Privacy</FooterLink>
+              </>
+            )}
             <FooterLink href="/trust-safety">Trust & safety</FooterLink>
           </FooterCol>
         </div>
