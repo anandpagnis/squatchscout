@@ -1,19 +1,22 @@
 import type { Metadata } from "next";
-import { Inter, Poppins } from "next/font/google";
+import { Figtree, Fraunces } from "next/font/google";
 import "./globals.css";
 import { brand, SITE_URL } from "@/lib/brand";
 
-const inter = Inter({
+// Body: Figtree — warm, highly legible geometric sans (variable).
+const figtree = Figtree({
   subsets: ["latin"],
-  variable: "--font-inter",
+  variable: "--font-figtree",
   display: "swap",
 });
 
-const poppins = Poppins({
+// Display: Fraunces — a serif with real character; the optical-size axis
+// keeps it sturdy at text sizes and expressive at hero sizes.
+const fraunces = Fraunces({
   subsets: ["latin"],
-  weight: ["500", "600", "700", "800"],
-  variable: "--font-poppins",
+  variable: "--font-fraunces",
   display: "swap",
+  axes: ["opsz"],
 });
 
 export const metadata: Metadata = {
@@ -56,7 +59,7 @@ export default function RootLayout({
     <html
       lang="en"
       data-scroll-behavior="smooth"
-      className={`${inter.variable} ${poppins.variable} h-full antialiased`}
+      className={`${figtree.variable} ${fraunces.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col bg-background text-foreground">
         {children}

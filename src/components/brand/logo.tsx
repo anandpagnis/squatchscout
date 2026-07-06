@@ -70,17 +70,25 @@ export function Logo({
   className,
   withWordmark = true,
   markClassName,
+  onDark = false,
 }: {
   className?: string;
   withWordmark?: boolean;
   markClassName?: string;
+  /** Set on deep-forest grounds (footer, lodge sections) for legible wordmark. */
+  onDark?: boolean;
 }) {
   return (
     <span className={cn("inline-flex items-center gap-2", className)}>
       <LogoMark className={markClassName} />
       {withWordmark && (
-        <span className="font-display text-xl font-extrabold tracking-tight text-ink">
-          Squatch<span className="text-orange-dark">Scout</span>
+        <span
+          className={cn(
+            "font-display text-xl font-bold tracking-tight",
+            onDark ? "text-paper" : "text-ink",
+          )}
+        >
+          Squatch<span className={onDark ? "text-amber" : "text-amber-deep"}>Scout</span>
         </span>
       )}
     </span>
