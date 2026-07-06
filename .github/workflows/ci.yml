@@ -1,0 +1,82 @@
+# CI safety net: every push/PR spins up the same local Supabase stack used in
+# dev, applies all migrations + seed from scratch, and runs the full check
+# suite. This is the gate between a bad migration and the hosted Supabase
+# project, since GitHub auto-deploys migrations on push to main.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Start local Supabase stack
+        run: supabase start
+
+      - name: Apply all migrations + seed from scratch
+        run: pnpm db:reset
+
+      # The example env IS the CI env: it points at the local stack with the
+      # well-known (non-secret) local dev keys.
+      - name: Configure app env
+        run: cp .env.example .env.local
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Smoke test — RLS + trigger guards
+        run: pnpm smoke:rls
+
+      - name: Smoke test — checkout write path
+        run: pnpm smoke:checkout
+
+      - name: Start Next.js dev server
+        run: |
+          NEXT_TELEMETRY_DISABLED=1 pnpm dev > dev-server.log 2>&1 &
+          echo "waiting for dev server…"
+          for i in $(seq 1 90); do
+            if curl -sf -o /dev/null http://localhost:3000; then
+              echo "dev server ready"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "dev server never became ready" >&2
+          cat dev-server.log >&2
+          exit 1
+
+      - name: Smoke test — authenticated pages + route guards
+        run: pnpm smoke:pages
+
+      - name: Dev server log (on failure)
+        if: failure()
+        run: cat dev-server.log 2>/dev/null || true
+
+      - name: Stop Supabase stack
+        if: always()
+        run: supabase stop --no-backup || true

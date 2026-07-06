@@ -83,6 +83,24 @@ The login screen also has a **"Demo logins"** expander with these.
 | `pnpm db:reset` | Re-apply all migrations + re-seed (wipes local DB) |
 | `pnpm db:status` | Show local Supabase URLs & keys |
 | `pnpm gen:types` | Generate `src/lib/database.types.ts` from the local DB |
+| `pnpm smoke:rls` | RLS + trigger-guard checks (needs local stack) |
+| `pnpm smoke:checkout` | End-to-end checkout write path (needs local stack) |
+| `pnpm smoke:pages` | Authenticated click-through of all roles' pages (needs local stack + `pnpm dev`) |
+
+---
+
+## CI
+
+`.github/workflows/ci.yml` runs on every push and pull request: it boots the same
+local Supabase stack in the runner's Docker, applies **all migrations + seed from
+scratch**, then runs `typecheck`, `lint`, and all three `smoke:*` suites (including
+the authenticated page click-through against a real dev server).
+
+**PRs into `main` must pass this workflow.** The hosted Supabase project auto-deploys
+migrations from `main` (GitHub integration, no staging tier), so this workflow is the
+only gate between a bad migration and production. Branch protection — requiring the
+`checks` job before merge — is enforced in GitHub repo settings
+(Settings → Branches → protection rule for `main`), not in this repo.
 
 ---
 
