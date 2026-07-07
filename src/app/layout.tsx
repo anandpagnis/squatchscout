@@ -1,12 +1,14 @@
 import type { Metadata } from "next";
-import { Figtree, Fraunces } from "next/font/google";
+import { Fraunces, JetBrains_Mono, Lato } from "next/font/google";
 import "./globals.css";
 import { brand, SITE_URL } from "@/lib/brand";
 
-// Body: Figtree — warm, highly legible geometric sans (variable).
-const figtree = Figtree({
+// Body / UI: Lato — humanist sans that carries paragraphs, nav, buttons,
+// labels, and forms. Not variable, so weights are explicit: 400 + 700.
+const lato = Lato({
   subsets: ["latin"],
-  variable: "--font-figtree",
+  weight: ["400", "700"],
+  variable: "--font-lato",
   display: "swap",
 });
 
@@ -17,6 +19,15 @@ const fraunces = Fraunces({
   variable: "--font-fraunces",
   display: "swap",
   axes: ["opsz"],
+});
+
+// Numerals / codes: JetBrains Mono for prices, stat callouts, and booking
+// numbers — tabular texture where figures need to line up and feel exact.
+const jetbrainsMono = JetBrains_Mono({
+  subsets: ["latin"],
+  weight: ["400", "600"],
+  variable: "--font-jetbrains-mono",
+  display: "swap",
 });
 
 export const metadata: Metadata = {
@@ -59,7 +70,7 @@ export default function RootLayout({
     <html
       lang="en"
       data-scroll-behavior="smooth"
-      className={`${figtree.variable} ${fraunces.variable} h-full antialiased`}
+      className={`${lato.variable} ${fraunces.variable} ${jetbrainsMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col bg-background text-foreground">
         {children}

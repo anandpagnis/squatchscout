@@ -90,7 +90,7 @@ export function NotificationsBell({ userId }: { userId: string }) {
             className="absolute right-0 z-50 mt-2 w-80 overflow-hidden rounded-2xl border border-border bg-card shadow-elevated"
           >
             <div className="flex items-center justify-between border-b border-border px-4 py-3">
-              <p className="font-display text-sm font-bold">Notifications</p>
+              <p className="text-sm font-bold">Notifications</p>
               {unread > 0 && (
                 <button onClick={markAllRead} className="text-xs font-medium text-forest-mid hover:underline">
                   Mark all read

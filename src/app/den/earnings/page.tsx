@@ -49,12 +49,12 @@ export default async function DenEarningsPage() {
                 <div>
                   <p className="font-semibold text-ink">{b.service?.name ?? "Service"}</p>
                   <p className="text-xs text-muted-foreground">
-                    {b.booking_number}
+                    <span className="font-mono">{b.booking_number}</span>
                     {b.quoted_price != null && ` · ${formatPrice(b.quoted_price)} job`}
                     {b.platform_fee != null && ` · ${formatPrice(b.platform_fee)} fee`}
                   </p>
                 </div>
-                <span className="font-display text-lg font-bold text-ink">
+                <span className="font-mono text-lg font-semibold text-ink">
                   {formatPrice((b.contractor_payout ?? 0) + b.tip)}
                 </span>
               </li>

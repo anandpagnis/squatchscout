@@ -15,7 +15,7 @@ export function StatCard({
         <p className="text-sm font-medium text-muted-foreground">{label}</p>
         {icon && <span className="text-sage-dark [&_svg]:size-5">{icon}</span>}
       </div>
-      <p className="mt-2 font-display text-3xl font-extrabold tracking-tight">{value}</p>
+      <p className="mt-2 font-mono text-2xl font-semibold tracking-tight">{value}</p>
       {hint && <p className="mt-1 text-xs text-muted-foreground">{hint}</p>}
     </div>
   );

@@ -77,7 +77,7 @@ export default async function BookPage({
       <div className="mb-6 flex items-center gap-4 rounded-2xl border border-border bg-card p-5 shadow-card">
         <Avatar name={contractor.business_name} src={contractor.avatar_url} className="size-14" />
         <div className="min-w-0 flex-1">
-          <p className="font-display text-lg font-bold">{contractor.business_name}</p>
+          <p className="text-lg font-bold">{contractor.business_name}</p>
           <div className="flex flex-wrap items-center gap-x-4 text-sm text-muted-foreground">
             <Rating value={contractor.rating_avg} count={contractor.rating_count} />
             {contractor.base_city && <span>{contractor.base_city}, {contractor.base_state}</span>}

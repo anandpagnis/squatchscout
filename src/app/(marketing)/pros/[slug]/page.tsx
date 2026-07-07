@@ -154,7 +154,7 @@ export default async function ProfilePage({
                       <span className="text-sm font-medium text-ink">Custom quote</span>
                     ) : (
                       <>
-                        <span className="font-display text-lg font-bold text-ink">
+                        <span className="font-mono text-lg font-semibold text-ink">
                           {formatPrice(cs.price)}
                         </span>
                         <span className="block text-xs text-muted-foreground">{cs.price_unit}</span>
@@ -203,7 +203,7 @@ export default async function ProfilePage({
 
         <aside className="lg:sticky lg:top-20 lg:self-start">
           <div className="rounded-2xl border border-border bg-card p-6 shadow-card">
-            <p className="font-display text-lg font-bold">Ready to book {pro.business_name}?</p>
+            <p className="text-lg font-bold">Ready to book {pro.business_name}?</p>
             <p className="mt-1 text-sm text-muted-foreground">
               Pick a service and time — pay securely when you confirm.
             </p>

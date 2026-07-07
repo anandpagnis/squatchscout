@@ -42,7 +42,7 @@ export default async function DenThreadPage({
 
       <div className="flex items-center gap-3">
         <Avatar name="Customer" className="size-11" />
-        <p className="font-display text-lg font-bold">Customer</p>
+        <p className="text-lg font-bold">Customer</p>
       </div>
 
       <MessageThread

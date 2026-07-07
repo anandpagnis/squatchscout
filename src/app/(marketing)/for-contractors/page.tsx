@@ -58,7 +58,7 @@ export default function ForContractorsPage() {
               <span className="flex size-12 items-center justify-center rounded-2xl bg-orange-soft text-orange-dark [&_svg]:size-6">
                 {p.icon}
               </span>
-              <h3 className="mt-5 font-display text-lg font-bold">{p.title}</h3>
+              <h3 className="mt-5 text-lg font-bold">{p.title}</h3>
               <p className="mt-2 text-sm text-ink-soft">{p.body}</p>
             </div>
           ))}

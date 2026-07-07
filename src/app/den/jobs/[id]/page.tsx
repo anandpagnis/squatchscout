@@ -42,7 +42,7 @@ export default async function DenJobDetail({
         </div>
 
         <dl className="mt-5 space-y-3 text-sm">
-          <Row icon={<Hash />} label="Booking">{b.booking_number}</Row>
+          <Row icon={<Hash />} label="Booking"><span className="font-mono">{b.booking_number}</span></Row>
           <Row icon={<CalendarClock />} label="When">{when}</Row>
           <Row icon={<MapPin />} label="Where">
             {b.address_line1 ? `${b.address_line1}, ${b.city}, ${b.state} ${b.zip}` : "—"}
@@ -127,7 +127,7 @@ function PriceRow({ label, value, strong }: { label: string; value: string; stro
   return (
     <div className="flex items-center justify-between">
       <dt className="text-muted-foreground">{label}</dt>
-      <dd className={strong ? "font-display text-base font-bold text-ink" : "font-medium text-ink"}>{value}</dd>
+      <dd className={strong ? "font-mono text-base font-semibold text-ink" : "font-medium text-ink"}>{value}</dd>
     </div>
   );
 }

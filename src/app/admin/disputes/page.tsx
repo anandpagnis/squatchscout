@@ -43,7 +43,7 @@ export default async function AdminDisputesPage() {
               <div>
                 <p className="font-semibold text-ink">{d.subject}</p>
                 <p className="text-xs text-muted-foreground">
-                  {d.booking?.booking_number ?? "—"} ·{" "}
+                  <span className="font-mono">{d.booking?.booking_number ?? "—"}</span> ·{" "}
                   {new Date(d.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
                 </p>
               </div>
