@@ -65,6 +65,7 @@ await check(jordan, "/book?service=deep-cleaning");
 const pro = await login("sasquatch.handyman@example.com");
 await check(pro, "/den", ["Den"]);
 await check(pro, "/den/jobs");
+await check(pro, "/den/jobs/44444444-0000-0000-0000-000000000001");
 await check(pro, "/den/schedule");
 await check(pro, "/den/services");
 await check(pro, "/den/earnings");

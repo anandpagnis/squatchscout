@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Alert } from "@/components/ui/alert";
 import { SubmitButton } from "@/components/auth/submit-button";
+import { PriceRow as Row } from "@/components/booking/detail-rows";
 import { cn, formatPrice } from "@/lib/utils";
 import { brand } from "@/lib/brand";
 import type { PricingType } from "@/lib/types";
@@ -340,16 +341,5 @@ function Stepper({ step }: { step: number }) {
         </li>
       ))}
     </ol>
-  );
-}
-
-function Row({ label, value, strong }: { label: string; value: string; strong?: boolean }) {
-  return (
-    <div className="flex items-center justify-between gap-4">
-      <dt className="text-muted-foreground">{label}</dt>
-      <dd className={cn("text-right", strong ? "font-mono text-base font-semibold text-ink" : "font-medium text-ink")}>
-        {value}
-      </dd>
-    </div>
   );
 }

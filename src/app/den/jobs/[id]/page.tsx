@@ -1,12 +1,12 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, MapPin, CalendarClock, Hash, Check, X, Play } from "lucide-react";
+import { ArrowLeft, MapPin, CalendarClock, Hash } from "lucide-react";
 import { getBooking } from "@/lib/data/bookings";
 import { StatusBadge } from "@/components/booking/status-badge";
-import { Button } from "@/components/ui/button";
-import { updateJobStatus } from "../../actions";
-import { formatPrice } from "@/lib/utils";
+import { BookingMetaRow } from "@/components/booking/detail-rows";
+import { JobPayoutCard } from "@/components/den/job-payout-card";
+import { JobStatusActions } from "@/components/den/job-status-actions";
 
 export const metadata: Metadata = { title: "Job details" };
 
@@ -42,11 +42,11 @@ export default async function DenJobDetail({
         </div>
 
         <dl className="mt-5 space-y-3 text-sm">
-          <Row icon={<Hash />} label="Booking"><span className="font-mono">{b.booking_number}</span></Row>
-          <Row icon={<CalendarClock />} label="When">{when}</Row>
-          <Row icon={<MapPin />} label="Where">
+          <BookingMetaRow icon={<Hash />} label="Booking"><span className="font-mono">{b.booking_number}</span></BookingMetaRow>
+          <BookingMetaRow icon={<CalendarClock />} label="When">{when}</BookingMetaRow>
+          <BookingMetaRow icon={<MapPin />} label="Where">
             {b.address_line1 ? `${b.address_line1}, ${b.city}, ${b.state} ${b.zip}` : "—"}
-          </Row>
+          </BookingMetaRow>
         </dl>
 
         {b.job_notes && (
@@ -57,77 +57,9 @@ export default async function DenJobDetail({
         )}
       </div>
 
-      <div className="rounded-2xl border border-border bg-card p-6 shadow-card">
-        <h2 className="font-display text-lg font-bold">Your payout</h2>
-        {b.quoted_price != null ? (
-          <dl className="mt-3 space-y-2 text-sm">
-            <PriceRow label="Job price" value={formatPrice(b.quoted_price)} />
-            {b.platform_fee != null && <PriceRow label="Platform fee" value={`− ${formatPrice(b.platform_fee)}`} />}
-            <div className="my-1 border-t border-border" />
-            <PriceRow label="You earn" value={formatPrice(b.contractor_payout ?? 0)} strong />
-          </dl>
-        ) : (
-          <p className="mt-2 text-sm text-muted-foreground">Quote-type job — send the customer a price to confirm.</p>
-        )}
-      </div>
+      <JobPayoutCard booking={b} />
 
-      <div className="flex flex-wrap gap-3">
-        {b.status === "requested" && (
-          <>
-            <Action id={b.id} status="accepted" label="Accept job" icon={<Check />} />
-            <Action id={b.id} status="declined" label="Decline" icon={<X />} variant="outline" />
-          </>
-        )}
-        {(b.status === "accepted" || b.status === "scheduled") && (
-          <Action id={b.id} status="in_progress" label="Start job" icon={<Play />} />
-        )}
-        {b.status === "in_progress" && (
-          <Action id={b.id} status="completed" label="Mark complete" icon={<Check />} />
-        )}
-      </div>
-    </div>
-  );
-}
-
-function Action({
-  id,
-  status,
-  label,
-  icon,
-  variant = "primary",
-}: {
-  id: string;
-  status: string;
-  label: string;
-  icon: React.ReactNode;
-  variant?: "primary" | "outline";
-}) {
-  return (
-    <form action={updateJobStatus}>
-      <input type="hidden" name="id" value={id} />
-      <input type="hidden" name="status" value={status} />
-      <Button type="submit" variant={variant}>{icon} {label}</Button>
-    </form>
-  );
-}
-
-function Row({ icon, label, children }: { icon: React.ReactNode; label: string; children: React.ReactNode }) {
-  return (
-    <div className="flex items-start gap-3">
-      <span className="mt-0.5 text-muted-foreground [&_svg]:size-4">{icon}</span>
-      <div>
-        <dt className="text-xs uppercase tracking-wide text-muted-foreground">{label}</dt>
-        <dd className="font-medium text-ink">{children}</dd>
-      </div>
-    </div>
-  );
-}
-
-function PriceRow({ label, value, strong }: { label: string; value: string; strong?: boolean }) {
-  return (
-    <div className="flex items-center justify-between">
-      <dt className="text-muted-foreground">{label}</dt>
-      <dd className={strong ? "font-mono text-base font-semibold text-ink" : "font-medium text-ink"}>{value}</dd>
+      <JobStatusActions booking={b} />
     </div>
   );
 }

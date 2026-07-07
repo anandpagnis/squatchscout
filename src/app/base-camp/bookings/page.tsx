@@ -1,14 +1,13 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { CalendarCheck, ChevronRight, Search } from "lucide-react";
+import { CalendarCheck, Search } from "lucide-react";
 import { getProfile } from "@/lib/auth";
 import { listCustomerBookings } from "@/lib/data/bookings";
 import { DashboardHeader } from "@/components/dashboard/dashboard-shell";
 import { EmptyState } from "@/components/dashboard/empty-state";
-import { StatusBadge } from "@/components/booking/status-badge";
+import { CustomerBookingGroup } from "@/components/base-camp/booking-list";
 import { buttonVariants } from "@/components/ui/button";
-import { ACTIVE_BOOKING_STATUSES, type Booking } from "@/lib/types";
-import { formatPrice } from "@/lib/utils";
+import { ACTIVE_BOOKING_STATUSES } from "@/lib/types";
 import { microcopy } from "@/lib/brand";
 
 export const metadata: Metadata = { title: "My bookings" };
@@ -46,62 +45,10 @@ export default async function BookingsPage() {
         />
       ) : (
         <>
-          <BookingGroup title="Upcoming & in progress" rows={active} emptyHint="Nothing active right now." />
-          <BookingGroup title="Past" rows={past} emptyHint="No past jobs yet." />
+          <CustomerBookingGroup title="Upcoming & in progress" rows={active} emptyHint="Nothing active right now." />
+          <CustomerBookingGroup title="Past" rows={past} emptyHint="No past jobs yet." />
         </>
       )}
     </div>
-  );
-}
-
-function BookingGroup({
-  title,
-  rows,
-  emptyHint,
-}: {
-  title: string;
-  rows: Booking[];
-  emptyHint: string;
-}) {
-  return (
-    <section>
-      <h2 className="mb-3 font-display text-lg font-bold">{title}</h2>
-      {rows.length === 0 ? (
-        <p className="text-sm text-muted-foreground">{emptyHint}</p>
-      ) : (
-        <ul className="divide-y divide-border overflow-hidden rounded-2xl border border-border bg-card">
-          {rows.map((b) => (
-            <li key={b.id}>
-              <Link
-                href={`/base-camp/bookings/${b.id}`}
-                className="flex items-center gap-4 px-5 py-4 transition-colors hover:bg-muted"
-              >
-                <div className="min-w-0 flex-1">
-                  <p className="font-semibold text-ink">{b.service?.name ?? "Service"}</p>
-                  <p className="text-sm text-muted-foreground">
-                    {b.contractor?.business_name ?? "Pro"} ·{" "}
-                    {b.scheduled_start
-                      ? new Date(b.scheduled_start).toLocaleString("en-US", {
-                          month: "short",
-                          day: "numeric",
-                          hour: "numeric",
-                          minute: "2-digit",
-                        })
-                      : "Time TBD"}
-                  </p>
-                </div>
-                {b.quoted_price != null && (
-                  <span className="hidden font-semibold text-ink sm:block">
-                    {formatPrice(b.quoted_price)}
-                  </span>
-                )}
-                <StatusBadge status={b.status} />
-                <ChevronRight className="size-4 text-muted-foreground" />
-              </Link>
-            </li>
-          ))}
-        </ul>
-      )}
-    </section>
   );
 }
