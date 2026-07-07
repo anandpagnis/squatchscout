@@ -3,22 +3,22 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/utils";
 
 export const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-full font-semibold transition-all duration-200 disabled:pointer-events-none disabled:opacity-55 focus-visible:outline-none active:scale-[0.98] [&_svg]:shrink-0",
+  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-full font-semibold transition-all duration-200 ease-spring disabled:pointer-events-none disabled:opacity-50 focus-visible:outline-none active:scale-[0.97] active:translate-y-0 [&_svg]:shrink-0",
   {
     variants: {
       variant: {
-        // Brand orange CTA. Ink text keeps WCAG-AA contrast (≈6.4:1).
+        // Amber CTA. Ink text keeps WCAG-AA contrast (white-on-amber fails).
         primary:
-          "bg-primary text-primary-foreground shadow-soft hover:bg-orange-dark hover:shadow-lift",
+          "bg-amber text-ink shadow-card hover:bg-amber-strong hover:shadow-lift hover:-translate-y-px",
         secondary:
-          "bg-secondary text-secondary-foreground shadow-soft hover:brightness-110",
+          "bg-forest text-card shadow-card hover:bg-forest-mid hover:-translate-y-px",
         outline:
-          "border-2 border-ink/15 bg-background text-ink hover:border-primary hover:bg-orange-soft",
-        ghost: "text-ink hover:bg-muted",
-        soft: "bg-orange-soft text-orange-dark hover:bg-primary hover:text-primary-foreground",
+          "border-[1.5px] border-tan bg-transparent text-ink hover:border-amber-deep hover:bg-amber-soft",
+        ghost: "text-ink-soft hover:bg-muted hover:text-ink",
+        soft: "bg-amber-soft text-amber-deep hover:bg-amber hover:text-ink",
         destructive:
-          "bg-destructive text-destructive-foreground shadow-soft hover:brightness-110",
-        link: "text-orange-dark underline-offset-4 hover:underline",
+          "bg-danger text-card shadow-card hover:brightness-108",
+        link: "text-forest-mid underline-offset-4 hover:text-forest hover:underline",
       },
       size: {
         sm: "h-9 px-4 text-sm [&_svg]:size-4",

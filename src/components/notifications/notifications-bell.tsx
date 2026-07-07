@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { AnimatePresence, motion } from "framer-motion";
 import { Bell } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
@@ -64,21 +65,34 @@ export function NotificationsBell({ userId }: { userId: string }) {
         className="relative flex size-10 items-center justify-center rounded-full text-ink-soft transition-colors hover:bg-muted"
       >
         <Bell className="size-5" />
-        {unread > 0 && (
-          <span className="absolute right-1.5 top-1.5 flex min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-bold text-primary-foreground">
-            {unread > 9 ? "9+" : unread}
-          </span>
-        )}
+        <AnimatePresence>
+          {unread > 0 && (
+            <motion.span
+              initial={{ scale: 0, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0, opacity: 0 }}
+              transition={{ type: "spring", stiffness: 500, damping: 24 }}
+              className="absolute right-1.5 top-1.5 flex min-w-4 items-center justify-center rounded-full bg-amber px-1 text-[10px] font-bold text-ink"
+            >
+              {unread > 9 ? "9+" : unread}
+            </motion.span>
+          )}
+        </AnimatePresence>
       </button>
 
       {open && (
         <>
           <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} aria-hidden />
-          <div className="absolute right-0 z-50 mt-2 w-80 overflow-hidden rounded-2xl border border-border bg-card shadow-soft">
+          <motion.div
+            initial={{ opacity: 0, y: -6, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
+            className="absolute right-0 z-50 mt-2 w-80 overflow-hidden rounded-2xl border border-border bg-card shadow-elevated"
+          >
             <div className="flex items-center justify-between border-b border-border px-4 py-3">
               <p className="font-display text-sm font-bold">Notifications</p>
               {unread > 0 && (
-                <button onClick={markAllRead} className="text-xs font-medium text-orange-dark hover:underline">
+                <button onClick={markAllRead} className="text-xs font-medium text-forest-mid hover:underline">
                   Mark all read
                 </button>
               )}
@@ -89,7 +103,7 @@ export function NotificationsBell({ userId }: { userId: string }) {
               ) : (
                 notes.map((n) => {
                   const inner = (
-                    <div className={cn("px-4 py-3", !n.read_at && "bg-orange-soft/40")}>
+                    <div className={cn("px-4 py-3", !n.read_at && "bg-amber-soft/40")}>
                       <p className="text-sm font-semibold text-ink">{n.title}</p>
                       {n.body && <p className="text-xs text-muted-foreground">{n.body}</p>}
                     </div>
@@ -108,7 +122,7 @@ export function NotificationsBell({ userId }: { userId: string }) {
                 })
               )}
             </ul>
-          </div>
+          </motion.div>
         </>
       )}
     </div>
