@@ -60,6 +60,7 @@ await check(jordan, "/base-camp/reviews");
 await check(jordan, "/base-camp/messages");
 await check(jordan, "/book");
 await check(jordan, "/book?service=deep-cleaning");
+await check(jordan, "/base-camp/become-a-pro", ["Become a Scout Pro"]);
 
 // ── Contractor (sasquatch.handyman) ─────────────────────────────────────────
 const pro = await login("sasquatch.handyman@example.com");
@@ -86,6 +87,18 @@ await check(adminC, "/admin/bookings");
   report("customer blocked from /admin", r2.status >= 300 && r2.status < 400, `status ${r2.status}`);
   const r3 = await fetch(`${APP}/base-camp`, { redirect: "manual" });
   report("anon blocked from /base-camp", r3.status >= 300 && r3.status < 400, `status ${r3.status}`);
+}
+
+// ── Onboarding role step (Phase 7.7) ─────────────────────────────────────────
+// Seed users all carry a role in user_metadata, so they must be bounced home;
+// only first-time OAuth users (no metadata role) ever see the page.
+{
+  const r = await fetch(`${APP}/onboarding/role`, { headers: { cookie: jordan }, redirect: "manual" });
+  report("customer with role bounced from /onboarding/role", r.status >= 300 && r.status < 400, `status ${r.status}`);
+  const r2 = await fetch(`${APP}/onboarding/role`, { redirect: "manual" });
+  report("anon blocked from /onboarding/role", r2.status >= 300 && r2.status < 400, `status ${r2.status}`);
+  const r3 = await fetch(`${APP}/base-camp/become-a-pro`, { headers: { cookie: pro }, redirect: "manual" });
+  report("contractor blocked from /base-camp/become-a-pro", r3.status >= 300 && r3.status < 400, `status ${r3.status}`);
 }
 
 console.log(`\n${pass} passed, ${fail} failed`);

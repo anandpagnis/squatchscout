@@ -5,11 +5,13 @@
 > covers what the project is, everything done so far, everything remaining, and
 > — most importantly — the traps that already cost time so you don't re-hit them.
 
-_Last updated: 2026-07-07 (later the same day), after **Phase 7.5 (booking slot
-picker + double-booking guard)** was built on branch
-**`feat/7.5-slot-picker-double-booking`**. PRs #5 (Phase 7.4) and #6 (shadcn
-dashboards) are both **merged**; `main` = `534c08b`. Next up: user reviews/merges
-the 7.5 PR, then Phase 7.6 (Stripe)._
+_Last updated: 2026-07-07 (Windows session), after merging `main` (now
+`ab6f4f7` — **Phase 7.5 merged as PR #7**) into branch
+**`feat/7.7-google-oauth`** (Phase 7.7, Google OAuth + role upgrade, **open as
+PR #8**). 7.5 and 7.7 were built as parallel PRs off `534c08b`; the predicted
+HANDOFF.md + verify-rls.mjs conflicts were resolved in that merge commit
+(both sides kept). Next up: user reviews/merges PR #8, then Phase 7.6
+(Stripe)._
 
 > **ENVIRONMENT (2026-07-07): back on the Windows machine.** The 2026-07-06
 > session ran on macOS, but development has returned to Windows
@@ -125,9 +127,9 @@ Three Node scripts in `scripts/`, wired as pnpm aliases. They need the local sta
 up (`pnpm db:start` + `pnpm db:reset`); `smoke:pages` also needs `pnpm dev` running.
 
 ```
-pnpm smoke:rls       # 10 checks: money-column triggers + reviews_public view + RLS
+pnpm smoke:rls       # 16 checks: money/quote/role triggers + reviews_public + double-booking
 pnpm smoke:checkout  # 8 checks: end-to-end checkout write path, asserts DB rows
-pnpm smoke:pages     # 22 checks: authed click-through of every role's pages + route guards
+pnpm smoke:pages     # 27 checks: authed click-through of every role's pages + route guards
 ```
 `smoke:pages` logs in via the Supabase auth REST endpoint, forges the
 `@supabase/ssr` cookie (base64 chunked over ~3180 chars), and fetches gated routes
@@ -420,7 +422,78 @@ running" after falling to :3001 — just drive the existing one, it hot-reloads)
 CSS chunk — if a new rule doesn't apply, `touch` the file / hard-refresh before
 debugging the CSS itself.
 
-### Phase 7.5 — Booking slot picker + double-booking guard (DONE, on branch `feat/7.5-slot-picker-double-booking`, PR pending user merge)
+### Phase 7.7 — Google OAuth + role upgrade (DONE, on PR #8, pending user merge; built in parallel with 7.5 below)
+
+**Step-0 finding that shaped the phase:** no upgrade-to-pro path existed, and
+there is no contractor "onboarding wizard" to reuse — for email pro signups the
+`handle_new_user` trigger creates a bare `contractor_profiles` row and the Den
+itself is the onboarding (under-review alert → den/settings profile →
+den/services → den/schedule → admin verification). Also, Google users are
+never "role-less": the trigger instantly defaults them to `customer` in
+`public.users` AND `app_metadata`, so first-timer detection uses
+**`user_metadata.role` absence** (email signups always set it; OAuth never
+does until they choose).
+
+**Migration `20260101000009_role_upgrade.sql`** (SCHEMA CHANGE — auto-deploys
+on merge): relaxes `guard_user_sensitive_fields()` (migration 00) with the same
+`auth.uid() is null` trusted-writer allowance as the mig-07 money guards.
+Before this, NO ONE but a logged-in admin could change `users.role` — the
+service role bypasses RLS but not triggers. Browser-originated self-escalation
+via PostgREST still raises (smoke-tested).
+
+**App changes:**
+- `src/app/onboarding/actions.ts` — `chooseRoleAction`, the single role
+  transition used by BOTH entry points. Customer choice = stamp
+  `user_metadata.role` only (client-forgeable but authority stays in
+  app_metadata/users.role — roleFromUser prefers app_metadata). Pro choice =
+  admin-client sequence: contractor_profiles upsert → users.role update →
+  `auth.admin.updateUserById` app_metadata+user_metadata sync, with rollback of
+  the role if the metadata sync fails (otherwise proxy [JWT] and requireRole
+  [DB] disagree → redirect loop).
+- `src/app/onboarding/role/page.tsx` (+ layout) — first-time OAuth role
+  choice; bounces anyone who already has a metadata role or isn't a customer.
+  `src/components/onboarding/role-select-form.tsx` mirrors signup's RoleTab UI.
+- `src/app/auth/callback/route.ts` — routes `user_metadata.role`-less users to
+  `/onboarding/role` after code exchange.
+- `src/app/base-camp/become-a-pro/page.tsx` + `become-pro-form.tsx` — upgrade
+  page for existing customers (warns Base Camp/booking history becomes
+  invisible after the switch — the single-role model makes upgrade a SWITCH;
+  the user accepted this trade-off explicitly for this phase). Ghost-button CTA
+  added on the Base Camp overview.
+- `supabase/config.toml` — `[auth.external.google] enabled = true`, reading
+  `SUPABASE_AUTH_EXTERNAL_GOOGLE_CLIENT_ID/_SECRET`. **Unset env vars are just
+  CLI warnings** — verified `supabase stop/start` + CI-style boot works without
+  them. `.env.example`, README ("Google OAuth" section: Google Cloud client,
+  redirect URIs local `http://127.0.0.1:54321/auth/v1/callback` / hosted
+  `https://<ref>.supabase.co/auth/v1/callback`, dashboard steps) and DEPLOY.md
+  updated. The hosted dashboard config is the USER's task (no prod access).
+- `/login?error=google` now shows a Google-specific notice.
+- `scripts/verify-rls.mjs` +2 (self-escalation rejected / service-role role
+  change allowed; **12 checks on this branch**); `scripts/verify-pages.mjs` +4
+  (become-a-pro renders; role-holding user bounced from /onboarding/role; anon
+  blocked; contractor blocked from become-a-pro). After merging `main` (which
+  brought in 7.5's additions) the combined suites are **smoke:rls 16 checks /
+  smoke:pages 27 checks** (7.5 added no page checks).
+
+**Verified:** typecheck ✓ lint ✓ db:reset applies mig 09 ✓ smoke:rls 12/12 ✓
+smoke:checkout 8/8 ✓ smoke:pages 27/27 ✓, plus a real-browser E2E
+(playwright-core + Edge): fresh user signed up WITHOUT role metadata (exactly
+what OAuth produces) → sees /onboarding/role → "I'm a pro" + business name →
+lands in /den with the profile visible in den/settings → bounced from
+/base-camp (proves JWT app_metadata synced); second fresh user chose customer →
+/base-camp, and /onboarding/role bounces afterwards. Real Google sign-in needs
+actual client creds (user's task) — the OAuth-specific piece not covered by
+automation is only Google's own redirect.
+
+**Gotchas hit this session (Windows):**
+- A sandboxed `pnpm dev` on this machine dies with a Turbopack panic
+  (`0xc0000142` spawning the PostCSS worker child process) → every page 500s.
+  Run the dev server OUTSIDE the sandbox (or let the user run it).
+- The wedged-dev-server-after-db:reset gotcha from 7.5 re-occurred (500s with
+  a stale server) — kill the node process on :3000 and restart before chasing
+  "bugs".
+
+### Phase 7.5 — Booking slot picker + double-booking guard (DONE, merged as PR #7 → `ab6f4f7`; built in a parallel session)
 
 **Migration `20260101000008_booking_slot_guard.sql`** (SCHEMA CHANGE — auto-deploys
 to prod on merge):
@@ -492,7 +565,7 @@ Don't run ahead. Order (from the original build prompt, as amended):
 
 ### Interlude — shadcn dashboards (DONE, merged as PR #6 — see §6)
 
-### Phase 7.5 — Booking slot picker + double-booking guard (DONE, on PR — see §6)
+### Phase 7.5 — Booking slot picker + double-booking guard (DONE, merged as PR #7 — see §6)
 
 ### Phase 7.6 — Stripe integration
 Replace mock `src/lib/payments/provider.ts` with real Stripe, keeping the
@@ -509,13 +582,10 @@ aren't set** so `pnpm dev` works without keys. `payments` table already has
 `lib/supabase/admin.ts` (service-role) — and remember service_role now has grants
 (fixed in mig 07).
 
-### Phase 7.7 — Google OAuth completion
-`supabase/config.toml` references Google OAuth (currently `enabled=false`). Wire
-`components/auth/google-button.tsx` → Supabase Auth → `src/app/auth/callback/route.ts`.
-**Key gap:** `handle_new_user()` trigger (migration 06) reads `role` from
-`raw_user_meta_data`, which Google sign-ins won't have → every OAuth user silently
-becomes `customer`. Add a post-OAuth "customer or pro?" step for first-time OAuth
-users. Document redirect URLs + env vars in `.env.example` and README.
+### Phase 7.7 — Google OAuth + role upgrade (DONE, on PR — see §6)
+Remaining user-side task: create the Google Cloud OAuth client and configure
+it in the hosted Supabase dashboard (Auth → Providers → Google) — steps are in
+README → "Google OAuth".
 
 ### Phase 7.8 — Final pass
 Re-run the 7.1 placeholder audit; full click-through of both flows; `pnpm
@@ -550,8 +620,8 @@ any new env vars / setup steps.
 ## 9. Quick-start for a fresh agent
 
 ```bash
-# 1. Confirm where things are (macOS now — see the environment note at the top)
-cd /Users/anandp/Desktop/squatchscout && git branch --show-current && git log --oneline -5
+# 1. Confirm where things are (Windows — see the environment note at the top)
+cd /c/Users/aryan/squatchscout/squatchscout && git branch --show-current && git log --oneline -5
 
 # 2. Make sure main is current
 git checkout main && git pull origin main
@@ -570,13 +640,15 @@ pnpm smoke:rls && pnpm smoke:checkout && pnpm smoke:pages
 #    contractor: sasquatch.handyman@example.com (+5 more)
 #    admin:     admin@squatchscout.local
 
-# 6. Start the next phase (7.4 unless the user says otherwise) on a fresh branch,
-#    PR it through CI, hand back for review.
+# 6. Start the next phase (7.6 Stripe unless the user says otherwise) on a fresh
+#    branch, PR it through CI, hand back for review.
 ```
 
-**Latest on `main`:** `534c08b` (PR #6 merge — shadcn dashboards). **Current work:**
-Phase 7.5 on branch **`feat/7.5-slot-picker-double-booking`** (all checks green
-locally, PR open) — awaiting the user's review/merge; then **Phase 7.6 (Stripe)**.
-**NOTE:** branch protection on `main` is still **OFF** (user's choice, reconfirmed
-2026-07-07 before this schema phase). CI runs but does not gate; merging 7.5 will
-auto-deploy migration 08 to prod. Recommend re-enabling protection.
+**Latest on `main`:** `ab6f4f7` (PR #7 merge — Phase 7.5, migration 08 now in
+prod). **Current work:** Phase 7.7 on branch **`feat/7.7-google-oauth`** (PR
+#8, migration 09, main merged in + conflicts resolved) — awaiting the user's
+review/merge; then **Phase 7.6 (Stripe)**.
+**NOTE:** branch protection on `main` is still **OFF** (user's choice,
+reconfirmed 2026-07-07 before these schema phases). CI runs but does not gate;
+merging PR #8 auto-deploys migration 09 to prod. Recommend re-enabling
+protection.

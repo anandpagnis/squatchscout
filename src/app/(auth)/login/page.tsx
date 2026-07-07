@@ -14,9 +14,11 @@ export default async function LoginPage({
   const sp = await searchParams;
   const notice = sp.checkEmail
     ? "Check your email to confirm your account, then log in."
-    : sp.error
-      ? "That link expired or was invalid. Please log in again."
-      : undefined;
+    : sp.error === "google"
+      ? "Google sign-in isn't available right now. Try email and password instead."
+      : sp.error
+        ? "That link expired or was invalid. Please log in again."
+        : undefined;
 
   return (
     <AuthCard
