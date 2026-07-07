@@ -5,7 +5,7 @@
 > covers what the project is, everything done so far, everything remaining, and
 > — most importantly — the traps that already cost time so you don't re-hit them.
 
-_Last updated: 2026-07-06, after Phase 7.4 (persona component separation) went up as **PR #5** (awaiting user approve+merge). Next up: Phase 7.5._
+_Last updated: 2026-07-07, after the **shadcn dashboard integration** (user-requested interlude between 7.4 and 7.5) landed on branch **`feat/shadcn-dashboard-layout`** (commits `5c2a80f` + `fbf9beb`, local only — not yet pushed/PR'd). PR #5 (Phase 7.4) has been **merged** (`1fcaad5`). Next up: push/PR the shadcn branch, then Phase 7.5._
 
 > **ENVIRONMENT CHANGED (2026-07-06):** development moved from the Windows
 > machine described in §2 to **macOS** (`/Users/anandp/Desktop/squatchscout`,
@@ -353,6 +353,70 @@ Verified: typecheck ✓ lint ✓ smoke:rls 10/10 ✓ smoke:checkout 8/8 ✓
 smoke:pages 23/23 ✓ (first run of the suite on the new macOS machine — local
 stack + db:reset worked with no Windows-era flakes).
 
+### shadcn integration + dashboard sidebar rebuild (DONE locally, branch `feat/shadcn-dashboard-layout`, NOT yet PR'd)
+User-requested interlude (2026-07-07), not a numbered phase: "integrate shadcn
+dashboards… fix layout… different for pros and customers" via
+`pnpm dlx shadcn@latest apply --preset b3kJV0tZQ`. Commits `5c2a80f` + `fbf9beb`.
+
+**What happened / how it's structured:**
+- `shadcn init --preset b3kJV0tZQ` then `apply` (apply refuses to run without
+  init). Wrote `components.json`; new deps: `@base-ui/react`, `shadcn`,
+  `tw-animate-css`. **This registry generates @base-ui/react primitives, NOT
+  Radix** — composition uses a `render={<Link …/>}` prop, not `asChild`.
+- Preset overwrote the 9 existing `components/ui/*` primitives and appended its
+  own oklch token block to `globals.css`. Added on top: `sidebar`, `sheet`,
+  `tooltip`, `separator`, `dropdown-menu`, `table`, `tabs`, `breadcrumb`
+  (+ `src/hooks/use-mobile.ts`).
+- **DashboardShell rebuilt on the shadcn Sidebar** (`components/dashboard/
+  dashboard-shell.tsx`, still exports the same `DashboardHeader`): full-width
+  `SidebarInset` layout (the old centered `max-w-7xl` gutter is gone),
+  collapsible icon rail on desktop (⌘B), Sheet drawer on mobile, sticky topbar
+  (trigger + area label + NotificationsBell + UserMenu). All three dashboard
+  layouts (base-camp / den / admin) now pass `profile` + `areaKey` and **no
+  longer render SiteHeader**. `DashboardNav` rewritten as SidebarMenu.
+  `UserMenu` extracted from site-header to `components/brand/user-menu.tsx`
+  (site-header imports it).
+- **Per-persona theming:** customers (base-camp) light sidebar, pros (den) dark
+  forest, admin dark bark. Implemented as `:root:has([data-dashboard="…"])`
+  blocks at the end of `globals.css` — must be `:root:has()`, NOT a class on the
+  wrapper, because the mobile sidebar renders in a portal (Sheet) outside the
+  provider subtree. The shell stamps `data-dashboard` on `SidebarProvider`.
+
+**Preset collateral damage that was repaired (traps if you re-run shadcn):**
+1. The preset **deleted `formatPrice`/`titleFromSlug` from `src/lib/utils.ts`**
+   (restored) and **added an Inter font** whose `--font-sans` variable clobbered
+   Lato (removed from `app/layout.tsx`; the type system §"Type system rework"
+   still stands).
+2. It **dropped all custom cva variants** (~60 type errors). Compatibility
+   variants were re-added inside the new components: Button `primary`/`sage`/
+   `soft` + `md` size + `loading` prop + `ButtonProps`; Badge status set
+   (success/warning/danger/info/neutral) + legacy aliases (amber/forest/sage/
+   verified) + `dot` prop + `BadgeProps`; Alert `info`/`error`/`success`/
+   `warning`/`neutral`; Avatar legacy `name`/`src` initials shorthand. Don't
+   let a future `shadcn add --overwrite` wipe these — decline overwrite prompts
+   (pipe `n`s; `--yes` does NOT cover them).
+3. `use-mobile.ts` as generated fails `react-hooks/set-state-in-effect` (the
+   same lint trap from 7.2b) — rewritten with `useSyncExternalStore` (`fbf9beb`).
+4. **Design-system impact — flag to the user:** the preset's `:root` oklch block
+   overrides the 7.2b semantic tokens, so `--primary` is now the preset's
+   **green** (buttons/CTAs) and `--background` white-ish, while the named brand
+   tokens (amber/forest/paper/…) and marketing utilities (`bg-camp`/`bg-lodge`)
+   survive. The 7.2b "locked tokens" decision is therefore partially superseded
+   by the user's own preset choice; reverting CTAs to amber is a small edit to
+   the `:root { --primary: … }` block in `globals.css`.
+
+**Verified:** typecheck ✓ lint ✓ build ✓ smoke:rls 10/10 ✓ smoke:checkout 8/8 ✓
+smoke:pages 23/23 ✓, plus real-browser screenshots of both dashboards at
+1440×900 and 390×844 (desktop sidebar, mobile sheet, per-persona colors).
+No chromium-cli on this machine — used a scratchpad `playwright-core` script
+with `chromium.launch({ channel: "chrome" })` against the dev server, logging in
+with the demo creds. Two dev-loop gotchas: (a) the user often has their own
+`pnpm dev` on :3000 (a second one errors "Another next dev server is already
+running" after falling to :3001 — just drive the existing one, it hot-reloads);
+(b) after editing `globals.css` a long-running dev server can serve a stale HMR
+CSS chunk — if a new rule doesn't apply, `touch` the file / hard-refresh before
+debugging the CSS itself.
+
 ---
 
 ## 7. What remains (the rest of Phase 7)
@@ -361,7 +425,9 @@ stack + db:reset worked with no Windows-era flakes).
 The user is sending phase prompts **one at a time** and reviewing between each.
 Don't run ahead. Order (from the original build prompt, as amended):
 
-### Phase 7.4 — Customer vs contractor component separation (DONE — see §6)
+### Phase 7.4 — Customer vs contractor component separation (DONE, merged as PR #5 — see §6)
+
+### Interlude — shadcn dashboards (DONE locally — see §6; needs push + PR + user merge)
 
 ### Phase 7.5 — Booking slot picker + double-booking guard (NEXT)
 Build `components/booking/slot-picker.tsx`: reads a contractor's weekly
@@ -455,10 +521,11 @@ pnpm smoke:rls && pnpm smoke:checkout && pnpm smoke:pages
 #    PR it through CI, hand back for review.
 ```
 
-**Latest on `main`:** `a6f84b7` (PR #4 merge). **Current work:** Phase 7.4 on branch
-`feat/7.4-persona-booking-components` (PR #5) — merge advances `main`; then **Phase 7.5** is next.
-**Current HEAD = `main` at `a6f84b7`** (PR #4 merge; includes type system + Phase 7.3 + this doc).
-Feature branch deleted locally. **NOTE:** the user has **deleted the branch-protection
-ruleset** on `main` — pushes to `main` no longer require CI or review. CI still runs but
-does not gate. Recommend re-enabling protection before any schema phase (7.5+), since a
-migration on `main` auto-deploys to prod.
+**Latest on `main`:** `1fcaad5` (PR #5 merge — Phase 7.4). **Current work:** the shadcn
+dashboard integration on branch **`feat/shadcn-dashboard-layout`** (commits `5c2a80f` +
+`fbf9beb`, all checks green locally) — needs `git push -u origin`, a PR, and the user's
+merge; then **Phase 7.5** is next.
+**NOTE:** the user has **deleted the branch-protection ruleset** on `main` — pushes to
+`main` no longer require CI or review. CI still runs but does not gate. Recommend
+re-enabling protection before any schema phase (7.5+), since a migration on `main`
+auto-deploys to prod.
