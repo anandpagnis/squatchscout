@@ -4,8 +4,16 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { notifyContractor } from "@/lib/notify";
 import { brand } from "@/lib/brand";
+import {
+  computeDaySlots,
+  weekDates,
+  toDateISO,
+  type DaySlots,
+  type TimeRange,
+} from "@/lib/booking/slots";
 
 export type BookingState = { error?: string };
 
@@ -24,6 +32,97 @@ const schema = z.object({
   quoted_price: z.coerce.number().nonnegative().optional(),
   save_address: z.string().optional(),
 });
+
+const slotsSchema = z.object({
+  contractor_id: z.string().uuid(),
+  week_start: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  duration_mins: z.coerce.number().int().min(15).max(12 * 60),
+});
+
+export type WeekSlotsResult = { days: DaySlots[] } | { error: string };
+
+/**
+ * Bookable slots for one contractor over the 7 days starting at week_start.
+ * Client-side filtering is UX only — the real guard is the
+ * bookings_no_double_booking exclusion constraint (migration 08), enforced
+ * again on submit in createBooking.
+ */
+export async function getWeekSlots(input: {
+  contractor_id: string;
+  week_start: string;
+  duration_mins: number;
+}): Promise<WeekSlotsResult> {
+  const parsed = slotsSchema.safeParse(input);
+  if (!parsed.success) return { error: "Invalid slot query" };
+  const { contractor_id, week_start, duration_mins } = parsed.data;
+
+  // Bound the window: no further than ~8 weeks out.
+  const start = new Date(`${week_start}T12:00:00`);
+  if (Number.isNaN(start.getTime())) return { error: "Invalid week" };
+  const horizon = new Date();
+  horizon.setDate(horizon.getDate() + 56);
+  if (start > horizon) return { error: "That week is too far ahead to book" };
+
+  const dates = weekDates(week_start);
+  const rangeStart = new Date(`${dates[0]}T00:00:00`);
+  const rangeEnd = new Date(`${dates[6]}T23:59:59`);
+
+  const supabase = await createClient();
+  const admin = createAdminClient();
+  const [{ data: windows }, { data: blocks }, { data: booked }] =
+    await Promise.all([
+      supabase
+        .from("availability")
+        .select("day_of_week, start_time, end_time")
+        .eq("contractor_id", contractor_id),
+      supabase
+        .from("availability_blocks")
+        .select("start_datetime, end_datetime")
+        .eq("contractor_id", contractor_id)
+        .lt("start_datetime", rangeEnd.toISOString())
+        .gt("end_datetime", rangeStart.toISOString()),
+      // Other customers' bookings are RLS-hidden; read the time ranges with
+      // the service-role client and expose only slot statuses, never rows.
+      admin
+        .from("bookings")
+        .select("scheduled_start, scheduled_end")
+        .eq("contractor_id", contractor_id)
+        .in("status", ["requested", "accepted", "scheduled", "in_progress"])
+        .is("deleted_at", null)
+        .not("scheduled_start", "is", null)
+        .lt("scheduled_start", rangeEnd.toISOString())
+        .gt("scheduled_end", rangeStart.toISOString()),
+    ]);
+
+  const toRanges = (
+    rows: { start: string | null; end: string | null }[],
+  ): TimeRange[] =>
+    rows.flatMap((r) =>
+      r.start && r.end ? [{ start: new Date(r.start), end: new Date(r.end) }] : [],
+    );
+  const blockRanges = toRanges(
+    (blocks ?? []).map((b) => ({ start: b.start_datetime, end: b.end_datetime })),
+  );
+  const bookedRanges = toRanges(
+    (booked ?? []).map((b) => ({ start: b.scheduled_start, end: b.scheduled_end })),
+  );
+
+  const now = new Date();
+  const todayISO = toDateISO(now);
+  const days = dates.map((dateISO) =>
+    dateISO < todayISO
+      ? { dateISO, hasWindows: false, slots: [] }
+      : computeDaySlots({
+          dateISO,
+          windows: windows ?? [],
+          blocks: blockRanges,
+          booked: bookedRanges,
+          durationMins: duration_mins,
+          now,
+        }),
+  );
+  return { days };
+}
 
 export async function createBooking(
   _prev: BookingState,
@@ -93,6 +192,14 @@ export async function createBooking(
     .single();
 
   if (error || !booking) {
+    // 23P01 = exclusion_violation from bookings_no_double_booking (migration 08):
+    // another active booking for this pro overlaps the requested window.
+    if (error?.code === "23P01") {
+      return {
+        error:
+          "That time slot was just taken for this pro — please pick another time.",
+      };
+    }
     return { error: "We couldn't place that booking. Please try again." };
   }
 

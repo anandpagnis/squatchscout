@@ -19,7 +19,7 @@ import { brand } from "@/lib/brand";
 
 export const metadata: Metadata = { title: "Book a pro" };
 
-type Search = { contractor?: string; match?: string; service?: string };
+type Search = { contractor?: string; match?: string; service?: string; start?: string };
 
 export default async function BookPage({
   searchParams,
@@ -115,6 +115,7 @@ export default async function BookPage({
           }))}
           addresses={(addresses ?? []) as never}
           preselectServiceId={sp.service}
+          preselectStart={sp.start}
         />
       )}
     </div>
