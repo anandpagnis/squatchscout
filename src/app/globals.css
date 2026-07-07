@@ -5,8 +5,9 @@
 
   Direction: warm paper (not white), deep forest green as the structural
   color, amber as the single confident accent (deepened from the logo
-  orange), bark browns instead of gray. Fraunces (display serif with real
-  character) over Figtree (legible geometric body).
+  orange), bark browns instead of gray. Type is a three-role system:
+  Lato (body/UI), Fraunces (display serif — H1/H2/hero only), and
+  JetBrains Mono (numerals/codes: prices, stats, booking numbers).
 
   Contrast notes (WCAG AA):
   - Amber CTAs pair with ink text (≈6.9:1); white-on-amber fails AA.
@@ -80,9 +81,12 @@
   --color-info: #2b6777;
   --color-info-soft: #dfedf0;
 
-  /* ── Typography ── */
-  --font-sans: var(--font-figtree), ui-sans-serif, system-ui, sans-serif;
+  /* ── Typography — three deliberate roles ──
+     body/UI: Lato · display (H1/H2/hero only): Fraunces ·
+     numerals/codes (prices, stat callouts, booking numbers): JetBrains Mono */
+  --font-sans: var(--font-lato), ui-sans-serif, system-ui, sans-serif;
   --font-display: var(--font-fraunces), Georgia, "Times New Roman", serif;
+  --font-mono: var(--font-jetbrains-mono), ui-monospace, "SFMono-Regular", Menlo, monospace;
 
   /* Deliberate type scale (text-display … text-caption utilities) */
   --text-display: clamp(2.75rem, 6vw, 4.25rem);
@@ -137,12 +141,21 @@
     text-rendering: optimizeLegibility;
   }
 
-  h1, h2, h3, h4, h5 {
+  /* Display serif carries only the top heading tier — the brand voice.
+     Deeper headings are bold Lato so the serif never bleeds into UI chrome. */
+  h1, h2 {
     font-family: var(--font-display);
     font-weight: 600;
     letter-spacing: -0.015em;
     text-wrap: balance;
     font-variation-settings: "opsz" 40;
+  }
+
+  h3, h4, h5 {
+    font-family: var(--font-sans);
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    text-wrap: balance;
   }
 
   /* Visible, on-brand focus ring for keyboard users (accessibility) */

@@ -116,7 +116,7 @@ export default async function BookingDetailPage({
         </div>
 
         <dl className="mt-6 space-y-3 text-sm">
-          <Detail icon={<Hash />} label="Booking">{booking.booking_number}</Detail>
+          <Detail icon={<Hash />} label="Booking"><span className="font-mono">{booking.booking_number}</span></Detail>
           <Detail icon={<CalendarClock />} label="When">{when}</Detail>
           <Detail icon={<MapPin />} label="Where">
             {booking.address_line1
@@ -219,7 +219,7 @@ function PriceRow({ label, value, strong }: { label: string; value: string; stro
   return (
     <div className="flex items-center justify-between">
       <dt className="text-muted-foreground">{label}</dt>
-      <dd className={strong ? "font-display text-base font-bold text-ink" : "font-medium text-ink"}>
+      <dd className={strong ? "font-mono text-base font-semibold text-ink" : "font-medium text-ink"}>
         {value}
       </dd>
     </div>

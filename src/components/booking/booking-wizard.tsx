@@ -117,7 +117,7 @@ export function BookingWizard({
           {/* Step 1 — Service */}
           {step === 0 && (
             <fieldset className="space-y-2">
-              <legend className="mb-2 font-display text-lg font-bold">Choose a service</legend>
+              <legend className="mb-2 text-lg font-bold">Choose a service</legend>
               {services.map((s) => (
                 <label
                   key={s.id}
@@ -347,7 +347,7 @@ function Row({ label, value, strong }: { label: string; value: string; strong?: 
   return (
     <div className="flex items-center justify-between gap-4">
       <dt className="text-muted-foreground">{label}</dt>
-      <dd className={cn("text-right", strong ? "font-display text-base font-bold text-ink" : "font-medium text-ink")}>
+      <dd className={cn("text-right", strong ? "font-mono text-base font-semibold text-ink" : "font-medium text-ink")}>
         {value}
       </dd>
     </div>

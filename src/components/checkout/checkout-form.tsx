@@ -135,7 +135,7 @@ function Row({
       <dt className="text-muted-foreground">{label}</dt>
       <dd
         className={cn(
-          strong ? "font-display text-base font-bold text-ink" : "font-medium text-ink",
+          strong ? "font-mono text-base font-semibold text-ink" : "font-medium text-ink",
           muted && "text-muted-foreground",
         )}
       >

@@ -85,7 +85,7 @@ export default async function BaseCampPage() {
                   <div>
                     <p className="font-semibold text-ink">{service}</p>
                     <p className="text-xs text-muted-foreground">
-                      {b.booking_number as string} · {when}
+                      <span className="font-mono">{b.booking_number as string}</span> · {when}
                     </p>
                   </div>
                   <Badge variant={b.status === "completed" ? "success" : "default"}>

@@ -13,7 +13,7 @@ export function Prose({
       className={cn(
         "max-w-none text-ink-soft",
         "[&_h2]:mt-10 [&_h2]:font-display [&_h2]:text-xl [&_h2]:font-bold [&_h2]:text-ink",
-        "[&_h3]:mt-6 [&_h3]:font-display [&_h3]:text-base [&_h3]:font-bold [&_h3]:text-ink",
+        "[&_h3]:mt-6 [&_h3]:text-base [&_h3]:font-bold [&_h3]:text-ink",
         "[&_p]:mt-3 [&_p]:leading-relaxed",
         "[&_ul]:mt-3 [&_ul]:list-disc [&_ul]:space-y-1.5 [&_ul]:pl-5",
         "[&_a]:font-medium [&_a]:text-orange-dark [&_a]:underline",
@@ -39,7 +39,7 @@ export function PageHero({
     <div className="bg-camp">
       <div className="mx-auto max-w-3xl px-4 py-16 sm:px-6">
         {eyebrow && (
-          <p className="font-display text-sm font-bold uppercase tracking-wide text-orange-dark">
+          <p className="text-sm font-bold uppercase tracking-wide text-orange-dark">
             {eyebrow}
           </p>
         )}

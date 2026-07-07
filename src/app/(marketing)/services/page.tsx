@@ -33,7 +33,7 @@ export default function ServicesPage() {
                 <CategoryIcon name={c.icon} />
               </span>
               <span className="flex-1">
-                <span className="block font-display text-lg font-bold text-ink">{c.name}</span>
+                <span className="block text-lg font-bold text-ink">{c.name}</span>
                 <span className="block text-sm text-muted-foreground">{c.blurb}</span>
               </span>
               <ArrowRight className="size-5 text-muted-foreground transition-transform group-hover:translate-x-1 group-hover:text-orange-dark" />

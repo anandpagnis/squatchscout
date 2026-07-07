@@ -48,7 +48,7 @@ export default async function CustomerThreadPage({
       <div className="flex items-center gap-3">
         <Avatar name={conv.contractor?.business_name} src={conv.contractor?.avatar_url} className="size-11" />
         <div>
-          <p className="font-display text-lg font-bold">{conv.contractor?.business_name ?? "Pro"}</p>
+          <p className="text-lg font-bold">{conv.contractor?.business_name ?? "Pro"}</p>
           {conv.contractor?.slug && (
             <Link href={`/pros/${conv.contractor.slug}`} className="text-xs text-orange-dark hover:underline">
               View profile

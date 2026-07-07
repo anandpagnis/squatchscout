@@ -13,7 +13,7 @@ export function DashboardShell({
     <div className="mx-auto flex max-w-7xl flex-col gap-6 px-4 py-6 sm:px-6 lg:flex-row lg:gap-8 lg:py-10">
       <aside className="lg:w-60 lg:shrink-0">
         <div className="lg:sticky lg:top-20">
-          <p className="mb-3 hidden px-3.5 font-display text-xs font-bold uppercase tracking-wide text-muted-foreground lg:block">
+          <p className="mb-3 hidden px-3.5 text-xs font-bold uppercase tracking-wide text-muted-foreground lg:block">
             {area}
           </p>
           <DashboardNav items={nav} />

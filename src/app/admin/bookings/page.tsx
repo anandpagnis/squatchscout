@@ -37,13 +37,13 @@ export default async function AdminBookingsPage() {
             <div>
               <p className="font-semibold text-ink">{b.service?.name ?? "Service"}</p>
               <p className="text-xs text-muted-foreground">
-                {b.booking_number} · {b.contractor?.business_name ?? "Pro"} ·{" "}
+                <span className="font-mono">{b.booking_number}</span> · {b.contractor?.business_name ?? "Pro"} ·{" "}
                 {new Date(b.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
               </p>
             </div>
             <div className="flex items-center gap-3">
               {(b.final_price ?? b.quoted_price) != null && (
-                <span className="font-semibold text-ink">{formatPrice(b.final_price ?? b.quoted_price ?? 0)}</span>
+                <span className="font-mono font-semibold text-ink">{formatPrice(b.final_price ?? b.quoted_price ?? 0)}</span>
               )}
               <StatusBadge status={b.status} />
             </div>

@@ -28,7 +28,7 @@ export default async function DenSettingsPage() {
               {approved ? <ShieldCheck /> : <ShieldAlert />}
             </span>
             <div>
-              <p className="font-display text-lg font-bold">Verification</p>
+              <p className="text-lg font-bold">Verification</p>
               <p className="text-sm text-muted-foreground">
                 Status:{" "}
                 <Badge variant={approved ? "success" : "warning"}>{pro.verification_status}</Badge>

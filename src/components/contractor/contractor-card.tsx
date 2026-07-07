@@ -16,7 +16,7 @@ export function ContractorCard({ pro }: { pro: TCard }) {
         <Avatar name={pro.business_name} src={pro.avatar_url} className="size-14" />
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
-            <h3 className="truncate font-display text-base font-bold text-ink">
+            <h3 className="truncate text-base font-bold text-ink">
               {pro.business_name}
             </h3>
             <BadgeCheck className="size-4 shrink-0 text-sage-dark" aria-label="Verified" />
@@ -48,7 +48,7 @@ export function ContractorCard({ pro }: { pro: TCard }) {
         <span className="text-sm text-muted-foreground">
           {pro.from_price != null ? (
             <>
-              <span className="font-display text-lg font-bold text-ink">
+              <span className="font-mono text-lg font-semibold text-ink">
                 {formatPrice(pro.from_price)}
               </span>{" "}
               starting
