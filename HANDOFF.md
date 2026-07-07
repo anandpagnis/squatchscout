@@ -253,8 +253,8 @@ forbids `useEffect(() => setState(...))` — close the mobile menu via `onClick`
 the links, not a pathname effect. (2) A dropped `>` on a `motion.div` opening tag
 gives a cascade of confusing JSX parse errors — check tag closing first.
 
-### Type system rework — Lato-anchored three-role pairing (CODE DONE, on PR #3)
-**Branch `feat/type-system-and-landing`, PR #3** (bundled with Phase 7.3 below).
+### Type system rework — Lato-anchored three-role pairing (DONE, MERGED via PR #3/#4)
+Bundled with Phase 7.3 below on branch `feat/type-system-and-landing`.
 Replaced Figtree-everywhere with a deliberate three-role split, user-specified:
 
 - **Body / UI — Lato** (400 + 700; NOT a variable font, weights must be explicit
@@ -276,7 +276,7 @@ class that would have overridden the new base rules — those were swept off
 h1/h2 elements are redundant-but-harmless. `font-bold` (700) is fine for Lato;
 for mono use `font-semibold` (600) — JetBrains Mono 700 isn't loaded.
 
-### Phase 7.3 — Landing page rebuild (CODE DONE, on PR #3, AWAITING USER APPROVAL)
+### Phase 7.3 — Landing page rebuild (DONE, MERGED via PR #3/#4)
 Full rewrite of `src/app/(marketing)/page.tsx` (still a server component; motion
 via the client `Reveal`/`Stagger` primitives):
 - **Split dual-persona hero** — customer side left (display headline, CTAs to
@@ -410,5 +410,8 @@ pnpm smoke:rls && pnpm smoke:checkout && pnpm smoke:pages
 #    PR it through CI, hand back for review.
 ```
 
-**Current HEAD:** `cc2ad12` on branch `feat/type-system-and-landing` (type system + Phase 7.3, PR #3).
-**Latest on `main`:** `2eb73dd` (PR #2, design system) — PR #3 will advance it once merged.
+**Current HEAD = `main` at `a6f84b7`** (PR #4 merge; includes type system + Phase 7.3 + this doc).
+Feature branch deleted locally. **NOTE:** the user has **deleted the branch-protection
+ruleset** on `main` — pushes to `main` no longer require CI or review. CI still runs but
+does not gate. Recommend re-enabling protection before any schema phase (7.5+), since a
+migration on `main` auto-deploys to prod.
