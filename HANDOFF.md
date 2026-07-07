@@ -5,21 +5,22 @@
 > covers what the project is, everything done so far, everything remaining, and
 > — most importantly — the traps that already cost time so you don't re-hit them.
 
-_Last updated: 2026-07-07 (Windows session), after **Phase 7.7 (Google OAuth +
-role upgrade)** was built on branch **`feat/7.7-google-oauth`**, branched off
-`main` = `534c08b` (PR #6, shadcn dashboards). NOTE: **Phase 7.5 (slot picker,
-branch `feat/7.5-slot-picker-double-booking`, migration 08) was still an
-unmerged PR when 7.7 branched** — the two branches touch disjoint files except
-THIS handoff, which will conflict on whichever merges second (both edited the
-header + phase sections; take both sides). Next up: user merges 7.5 and 7.7,
-then Phase 7.6 (Stripe)._
+_Last updated: 2026-07-07 (Windows session), after merging `main` (now
+`ab6f4f7` — **Phase 7.5 merged as PR #7**) into branch
+**`feat/7.7-google-oauth`** (Phase 7.7, Google OAuth + role upgrade, **open as
+PR #8**). 7.5 and 7.7 were built as parallel PRs off `534c08b`; the predicted
+HANDOFF.md + verify-rls.mjs conflicts were resolved in that merge commit
+(both sides kept). Next up: user reviews/merges PR #8, then Phase 7.6
+(Stripe)._
 
 > **ENVIRONMENT (2026-07-07): back on the Windows machine.** The 2026-07-06
-> session ran on macOS, but development returned to Windows
+> session ran on macOS, but development has returned to Windows
 > (`c:\Users\aryan\squatchscout\squatchscout`, doubled folder name) — ALL the
-> Windows gotchas in §2 apply (PowerShell + Git Bash, NO gh CLI → use the REST
-> helper, Docker named-pipe flake, CRLF noise). If a future session lands on
-> the Mac instead, see git history for the macOS note this block replaced.
+> Windows gotchas in §2 apply again (PowerShell + Git Bash, NO gh CLI → use the
+> REST helper, Docker named-pipe flake, CRLF noise). If a future session lands
+> on the Mac instead, see git history for the macOS note this block replaced.
+> One correction to §2 observed today: `pnpm db:reset` completed with NO
+> trailing 502 on this machine — treat the 502 as possible but not guaranteed.
 
 ---
 
@@ -126,9 +127,9 @@ Three Node scripts in `scripts/`, wired as pnpm aliases. They need the local sta
 up (`pnpm db:start` + `pnpm db:reset`); `smoke:pages` also needs `pnpm dev` running.
 
 ```
-pnpm smoke:rls       # 10 checks: money-column triggers + reviews_public view + RLS
+pnpm smoke:rls       # 16 checks: money/quote/role triggers + reviews_public + double-booking
 pnpm smoke:checkout  # 8 checks: end-to-end checkout write path, asserts DB rows
-pnpm smoke:pages     # 22 checks: authed click-through of every role's pages + route guards
+pnpm smoke:pages     # 27 checks: authed click-through of every role's pages + route guards
 ```
 `smoke:pages` logs in via the Supabase auth REST endpoint, forges the
 `@supabase/ssr` cookie (base64 chunked over ~3180 chars), and fetches gated routes
@@ -421,7 +422,7 @@ running" after falling to :3001 — just drive the existing one, it hot-reloads)
 CSS chunk — if a new rule doesn't apply, `touch` the file / hard-refresh before
 debugging the CSS itself.
 
-### Phase 7.7 — Google OAuth + role upgrade (DONE, on branch `feat/7.7-google-oauth`, PR pending user merge)
+### Phase 7.7 — Google OAuth + role upgrade (DONE, on PR #8, pending user merge; built in parallel with 7.5 below)
 
 **Step-0 finding that shaped the phase:** no upgrade-to-pro path existed, and
 there is no contractor "onboarding wizard" to reuse — for email pro signups the
@@ -470,9 +471,9 @@ via PostgREST still raises (smoke-tested).
 - `scripts/verify-rls.mjs` +2 (self-escalation rejected / service-role role
   change allowed; **12 checks on this branch**); `scripts/verify-pages.mjs` +4
   (become-a-pro renders; role-holding user bounced from /onboarding/role; anon
-  blocked; contractor blocked from become-a-pro; **27 checks on this branch**).
-  Counts differ from the 7.5 branch (14 rls / 23 pages) — both scripts will
-  need a trivial merge whichever lands second.
+  blocked; contractor blocked from become-a-pro). After merging `main` (which
+  brought in 7.5's additions) the combined suites are **smoke:rls 16 checks /
+  smoke:pages 27 checks** (7.5 added no page checks).
 
 **Verified:** typecheck ✓ lint ✓ db:reset applies mig 09 ✓ smoke:rls 12/12 ✓
 smoke:checkout 8/8 ✓ smoke:pages 27/27 ✓, plus a real-browser E2E
@@ -492,6 +493,66 @@ automation is only Google's own redirect.
   a stale server) — kill the node process on :3000 and restart before chasing
   "bugs".
 
+### Phase 7.5 — Booking slot picker + double-booking guard (DONE, merged as PR #7 → `ab6f4f7`; built in a parallel session)
+
+**Migration `20260101000008_booking_slot_guard.sql`** (SCHEMA CHANGE — auto-deploys
+to prod on merge):
+- Enables `btree_gist`; adds exclusion constraint **`bookings_no_double_booking`**:
+  no two overlapping bookings for the same contractor where
+  `status in ('requested','accepted','scheduled','in_progress')`, both schedule
+  columns non-null, `deleted_at is null`. Range is `tstzrange(scheduled_start,
+  scheduled_end, '[)')` — half-open, so back-to-back bookings sharing a boundary
+  are allowed. Terminal states (declined/cancelled/completed/refunded) release
+  the slot. `requested` DOES hold the slot (prevents two customers requesting the
+  same window; flag to the user if they'd rather only accepted+ hold).
+- Adds composite index `bookings_contractor_schedule_idx (contractor_id,
+  scheduled_start)` for the picker's range queries.
+- Seed data unaffected (all seeded bookings are `completed`).
+
+**App changes:**
+- `src/app/book/actions.ts` — `createBooking` catches Postgres `23P01`
+  (exclusion violation) → clean "That time slot was just taken…" message. New
+  server action `getWeekSlots` (zod-validated, ≤8 weeks ahead): reads
+  `availability` + `availability_blocks` with the user client (public read) and
+  booked ranges via the **admin client** (other customers' bookings are
+  RLS-hidden) but returns only slot statuses — no booking rows leak.
+- `src/lib/booking/slots.ts` (NEW) — pure slot computation (`computeDaySlots`,
+  30-min grid steps, statuses available/booked/blocked/past), unit-testable, no IO.
+- `src/components/booking/slot-picker.tsx` (NEW) — week nav + 7-day strip
+  (per-day open counts) + time grid. Taken slots are visibly disabled
+  (struck-through + `title` tooltip with the reason), not omitted. Skeleton
+  loading, "No availability this week" empty state. **Fetch state is keyed by
+  query and loading is derived** — do NOT refactor to `setState` in the effect
+  body (`react-hooks/set-state-in-effect`, the recurring lint trap).
+- `src/components/booking/booking-wizard.tsx` — step 2 now uses SlotPicker
+  (old free date input + hourly select removed); slot cleared when the chosen
+  service's duration changes; new `preselectStart` prop honors `?start=` deep
+  links. `/book` page passes `sp.start` through.
+- `src/components/booking/pro-availability-card.tsx` (NEW) + wired into
+  `/pros/[slug]` aside: public availability preview (service select when >1),
+  picking a slot deep-links to `/book?contractor&service&start` — both entry
+  points share the single `createBooking` action; the card never creates rows.
+- `scripts/verify-rls.mjs` extended with 4 double-booking checks (insert ok /
+  overlap rejected 23P01 / other-pro same time ok / back-to-back ok) →
+  **smoke:rls is now 14 checks**. smoke:pages stays 23 (no new routes).
+
+**Verified:** typecheck ✓ lint ✓ db:reset applies mig 08 cleanly ✓ gen:types
+regenerated ✓ smoke:rls 14/14 ✓ smoke:checkout 8/8 ✓ smoke:pages 23/23 ✓, plus a
+real-browser (playwright-core + Edge `channel:"msedge"`, works headless on this
+Windows machine) race test: customer A books a slot, customer B with a stale
+grid submits the same slot → clean rejection message, no raw DB error; booked
+slot then renders struck-through with "Already booked" tooltip; pro-card deep
+link verified.
+
+**Gotcha hit this session:** a long-running `pnpm dev` server can wedge with
+"Jest worker encountered 2 child process exceptions" (500s on some pages) after
+a `db:reset` — not an app bug; kill the node process on :3000 and restart dev
+before chasing page errors.
+
+**NOTE — branch protection:** still OFF (verified via API: no ruleset, no
+classic protection). The user explicitly chose to proceed without it for this
+phase. CI runs but does not gate; merge remains the user's action.
+
 ---
 
 ## 7. What remains (the rest of Phase 7)
@@ -504,7 +565,7 @@ Don't run ahead. Order (from the original build prompt, as amended):
 
 ### Interlude — shadcn dashboards (DONE, merged as PR #6 — see §6)
 
-### Phase 7.5 — Booking slot picker + double-booking guard (DONE, on PR — built on branch `feat/7.5-slot-picker-double-booking` in a parallel session; see that branch's HANDOFF for details)
+### Phase 7.5 — Booking slot picker + double-booking guard (DONE, merged as PR #7 — see §6)
 
 ### Phase 7.6 — Stripe integration
 Replace mock `src/lib/payments/provider.ts` with real Stripe, keeping the
@@ -583,11 +644,11 @@ pnpm smoke:rls && pnpm smoke:checkout && pnpm smoke:pages
 #    branch, PR it through CI, hand back for review.
 ```
 
-**Latest on `main`:** `534c08b` (PR #6 merge — shadcn dashboards). **Open PRs
-awaiting the user:** Phase 7.5 (`feat/7.5-slot-picker-double-booking`, migration
-08) and Phase 7.7 (`feat/7.7-google-oauth`, migration 09) — independent
-branches; HANDOFF.md and the two verify scripts conflict trivially on whichever
-merges second. Then **Phase 7.6 (Stripe)** is next.
-**NOTE:** branch protection on `main` is still **OFF** (user's choice). CI runs
-but does not gate; merging either PR auto-deploys its migration to prod.
-Recommend re-enabling protection.
+**Latest on `main`:** `ab6f4f7` (PR #7 merge — Phase 7.5, migration 08 now in
+prod). **Current work:** Phase 7.7 on branch **`feat/7.7-google-oauth`** (PR
+#8, migration 09, main merged in + conflicts resolved) — awaiting the user's
+review/merge; then **Phase 7.6 (Stripe)**.
+**NOTE:** branch protection on `main` is still **OFF** (user's choice,
+reconfirmed 2026-07-07 before these schema phases). CI runs but does not gate;
+merging PR #8 auto-deploys migration 09 to prod. Recommend re-enabling
+protection.

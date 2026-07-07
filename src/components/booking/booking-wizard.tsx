@@ -10,6 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Alert } from "@/components/ui/alert";
 import { SubmitButton } from "@/components/auth/submit-button";
 import { PriceRow as Row } from "@/components/booking/detail-rows";
+import { SlotPicker } from "@/components/booking/slot-picker";
 import { cn, formatPrice } from "@/lib/utils";
 import { brand } from "@/lib/brand";
 import type { PricingType } from "@/lib/types";
@@ -34,18 +35,22 @@ type AddressLite = {
 };
 
 const STEPS = ["Service", "Date & time", "Address", "Review"];
-const TIMES = Array.from({ length: 10 }, (_, i) => `${String(8 + i).padStart(2, "0")}:00`);
+
+type SlotPick = { startISO: string; label: string; dateISO: string };
 
 export function BookingWizard({
   contractorId,
   services,
   addresses,
   preselectServiceId,
+  preselectStart,
 }: {
   contractorId: string;
   services: ServiceLite[];
   addresses: AddressLite[];
   preselectServiceId?: string;
+  /** Deep-linked slot start (ISO) from a pro's profile page. */
+  preselectStart?: string;
 }) {
   const [step, setStep] = useState(0);
   const [serviceId, setServiceId] = useState(
@@ -53,9 +58,7 @@ export function BookingWizard({
       ? preselectServiceId
       : services[0]?.id ?? "",
   );
-  const today = new Date().toISOString().slice(0, 10);
-  const [date, setDate] = useState(today);
-  const [time, setTime] = useState("09:00");
+  const [slot, setSlot] = useState<SlotPick | null>(null);
 
   const defaultAddr = addresses.find((a) => a.is_default) ?? addresses[0];
   const [useNew, setUseNew] = useState(addresses.length === 0);
@@ -86,9 +89,17 @@ export function BookingWizard({
   const quoted = selected?.pricingType !== "quote" ? selected?.price ?? null : null;
   const fee = quoted ? Math.round(quoted * brand.platformFeeRate * 100) / 100 : null;
 
+  const whenLabel = slot
+    ? new Intl.DateTimeFormat("en-US", {
+        weekday: "short",
+        month: "short",
+        day: "numeric",
+      }).format(new Date(slot.startISO)) + ` at ${slot.label}`
+    : "—";
+
   const canNext =
     (step === 0 && !!serviceId) ||
-    (step === 1 && !!date && !!time) ||
+    (step === 1 && !!slot) ||
     (step === 2 && !!addr.line1 && !!addr.city && !!addr.state && !!addr.zip) ||
     step === 3;
 
@@ -100,7 +111,7 @@ export function BookingWizard({
         {/* Submitted values */}
         <input type="hidden" name="contractor_id" value={contractorId} />
         <input type="hidden" name="service_id" value={serviceId} />
-        <input type="hidden" name="scheduled_start" value={date && time ? `${date}T${time}` : ""} />
+        <input type="hidden" name="scheduled_start" value={slot?.startISO ?? ""} />
         <input type="hidden" name="duration_mins" value={selected?.durationMins ?? 120} />
         <input type="hidden" name="quoted_price" value={quoted ?? ""} />
         <input type="hidden" name="address_id" value={useNew ? "" : addressId} />
@@ -133,7 +144,11 @@ export function BookingWizard({
                       name="service_pick"
                       className="accent-[color:var(--color-primary)]"
                       checked={serviceId === s.id}
-                      onChange={() => setServiceId(s.id)}
+                      onChange={() => {
+                        // A different duration invalidates the picked slot.
+                        if (s.durationMins !== selected?.durationMins) setSlot(null);
+                        setServiceId(s.id);
+                      }}
                     />
                     <span className="font-semibold text-ink">{s.name}</span>
                   </span>
@@ -151,31 +166,15 @@ export function BookingWizard({
           {step === 1 && (
             <div className="space-y-4">
               <h2 className="font-display text-lg font-bold">When works for you?</h2>
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div>
-                  <Label htmlFor="date">Date</Label>
-                  <Input
-                    id="date"
-                    type="date"
-                    min={today}
-                    value={date}
-                    onChange={(e) => setDate(e.target.value)}
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="time">Start time</Label>
-                  <select
-                    id="time"
-                    value={time}
-                    onChange={(e) => setTime(e.target.value)}
-                    className="h-11 w-full rounded-xl border border-input bg-background px-3 text-sm focus-visible:border-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
-                  >
-                    {TIMES.map((t) => (
-                      <option key={t} value={t}>{t}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
+              <SlotPicker
+                contractorId={contractorId}
+                durationMins={selected?.durationMins ?? 120}
+                value={slot?.startISO ?? null}
+                initialStartISO={preselectStart}
+                onSelect={(startISO, label, dateISO) =>
+                  setSlot({ startISO, label, dateISO })
+                }
+              />
             </div>
           )}
 
@@ -270,7 +269,7 @@ export function BookingWizard({
               </div>
               <dl className="space-y-2 rounded-xl bg-muted p-4 text-sm">
                 <Row label="Service" value={selected?.name ?? "—"} />
-                <Row label="When" value={`${date} at ${time}`} />
+                <Row label="When" value={whenLabel} />
                 <Row label="Address" value={`${addr.line1}, ${addr.city}, ${addr.state} ${addr.zip}`} />
                 <div className="my-1 border-t border-border" />
                 {quoted != null ? (
