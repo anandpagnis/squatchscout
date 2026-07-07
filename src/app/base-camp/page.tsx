@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { CalendarCheck, CheckCircle2, Heart, Search } from "lucide-react";
+import { CalendarCheck, CheckCircle2, Hammer, Heart, Search } from "lucide-react";
 import { getProfile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { microcopy } from "@/lib/brand";
@@ -104,6 +104,9 @@ export default async function BaseCampPage() {
         </Link>
         <Link href="/base-camp/bookings" className={buttonVariants({ variant: "ghost" })}>
           View all bookings
+        </Link>
+        <Link href="/base-camp/become-a-pro" className={buttonVariants({ variant: "ghost" })}>
+          <Hammer /> Become a Scout Pro
         </Link>
       </div>
     </div>

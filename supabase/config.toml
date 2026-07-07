@@ -328,11 +328,13 @@ skip_nonce_check = false
 # If enabled, it will allow the user to successfully authenticate when the provider does not return an email address.
 email_optional = false
 
-# Google OAuth. Off by default so the app runs with no cloud keys.
-# To enable: set enabled = true and add the two env vars below to your shell / .env,
-# then run `supabase stop && supabase start`. The "Continue with Google" button works once enabled.
+# Google OAuth (Phase 7.7). Enabled, but the client id/secret come from env
+# vars — with them unset (the default, incl. CI) the CLI warns and the provider
+# simply fails at Google's consent screen; the rest of the stack is unaffected.
+# To actually sign in with Google locally: put real values in your shell or
+# .env, then `supabase stop && supabase start`. See README "Google OAuth".
 [auth.external.google]
-enabled = false
+enabled = true
 client_id = "env(SUPABASE_AUTH_EXTERNAL_GOOGLE_CLIENT_ID)"
 secret = "env(SUPABASE_AUTH_EXTERNAL_GOOGLE_SECRET)"
 # Required for local sign in with Google.

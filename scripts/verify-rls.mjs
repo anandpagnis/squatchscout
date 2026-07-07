@@ -1,4 +1,5 @@
-// Smoke test: RLS + trigger guards from migration 20260101000007_rls_hardening.
+// Smoke test: RLS + trigger guards from migrations 07 (rls_hardening) and
+// 09 (role_upgrade).
 // Requires the local stack with seed data (pnpm db:start + db:reset).
 // Run: node scripts/verify-rls.mjs
 import { createClient } from "@supabase/supabase-js";
@@ -179,6 +180,43 @@ const anon = createClient(URL, ANON, { auth: { persistSession: false } });
     "customer SELECT own reviews allowed",
     !error && (data?.length ?? 0) > 0,
     error?.message ?? `${data?.length} rows`,
+  );
+}
+
+// ── Role guard (migration 09): self-escalation blocked, server allowed ──────
+// NEGATIVE 5: a signed-in user cannot change their own role via PostgREST.
+{
+  const uid = (await customer.auth.getUser()).data.user.id;
+  const { error } = await customer
+    .from("users")
+    .update({ role: "contractor" })
+    .eq("id", uid)
+    .select();
+  report(
+    "customer UPDATE own users.role rejected",
+    !!error,
+    error ? error.message : "self-escalation went through (BAD)",
+  );
+}
+
+// POSITIVE 7: the service-role client CAN change a role (the become-a-pro
+// server action path). Flip riley → contractor, then revert.
+{
+  const RILEY = "22222222-2222-2222-2222-222222222222";
+  const { data, error } = await admin
+    .from("users")
+    .update({ role: "contractor" })
+    .eq("id", RILEY)
+    .select("id, role");
+  const upgraded = !error && data?.[0]?.role === "contractor";
+  const { error: revertErr } = await admin
+    .from("users")
+    .update({ role: "customer" })
+    .eq("id", RILEY);
+  report(
+    "service-role UPDATE users.role allowed (and reverted)",
+    upgraded && !revertErr,
+    error?.message ?? revertErr?.message,
   );
 }
 

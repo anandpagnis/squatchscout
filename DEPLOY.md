@@ -36,7 +36,10 @@ psql "postgresql://postgres:<password>@db.<ref>.supabase.co:5432/postgres" \
 - **Site URL**: `https://<your-app>.vercel.app`
 - **Redirect URLs**: add `https://<your-app>.vercel.app/**`
 - Turn **email confirmations** on for production (Auth → Providers → Email).
-- (Optional) **Google**: add Client ID/Secret under Auth → Providers → Google.
+- **Google OAuth**: enable Auth → Providers → Google and paste the Client
+  ID/Secret from your Google Cloud OAuth client. That client must list
+  `https://<project-ref>.supabase.co/auth/v1/callback` as an authorized
+  redirect URI. Full walkthrough: README → "Google OAuth".
 
 ## 4. Deploy to Vercel
 **Option A — CLI**
@@ -69,8 +72,11 @@ vercel --prod
 
 Optional (features stay in mock/disabled mode until set): `STRIPE_SECRET_KEY`,
 `STRIPE_WEBHOOK_SECRET`, `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`,
-`NEXT_PUBLIC_GOOGLE_MAPS_API_KEY`, `RESEND_API_KEY`, `EMAIL_FROM`,
-`SUPABASE_AUTH_EXTERNAL_GOOGLE_CLIENT_ID`, `SUPABASE_AUTH_EXTERNAL_GOOGLE_SECRET`.
+`NEXT_PUBLIC_GOOGLE_MAPS_API_KEY`, `RESEND_API_KEY`, `EMAIL_FROM`.
+
+(`SUPABASE_AUTH_EXTERNAL_GOOGLE_CLIENT_ID` / `_SECRET` are **not** Vercel vars —
+they only feed the local Supabase CLI stack. In production the Google client
+ID/secret live in the Supabase dashboard, step 3.)
 
 ## Notes
 - Framework preset: **Next.js** (auto-detected). Build: `next build`. No `vercel.json` needed.

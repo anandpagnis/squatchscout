@@ -24,6 +24,17 @@ export const signUpSchema = z
     { message: "Add your business name", path: ["business_name"] },
   );
 
+/** Post-signup role choice (first-time OAuth users) + customer → pro upgrade. */
+export const chooseRoleSchema = z
+  .object({
+    role: z.enum(["customer", "contractor"]),
+    business_name: z.string().trim().optional().or(z.literal("")),
+  })
+  .refine(
+    (d) => d.role !== "contractor" || (d.business_name && d.business_name.length >= 2),
+    { message: "Add your business name", path: ["business_name"] },
+  );
+
 export const forgotSchema = z.object({ email: emailField });
 
 export const resetSchema = z

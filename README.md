@@ -104,6 +104,35 @@ only gate between a bad migration and production. Branch protection — requirin
 
 ---
 
+## Google OAuth
+
+"Continue with Google" is wired end to end (Phase 7.7). First-time Google
+signups are routed to `/onboarding/role` to answer the same customer-vs-pro
+question as email signup; returning users go straight to their dashboard.
+The provider needs a Google Cloud OAuth client to actually work:
+
+1. In [Google Cloud Console](https://console.cloud.google.com/apis/credentials)
+   create an **OAuth client ID** (type *Web application*).
+2. Add the **authorized redirect URI** for each environment:
+   - Local stack: `http://127.0.0.1:54321/auth/v1/callback`
+   - Hosted: `https://<project-ref>.supabase.co/auth/v1/callback`
+3. **Local:** put the client ID/secret in
+   `SUPABASE_AUTH_EXTERNAL_GOOGLE_CLIENT_ID` / `SUPABASE_AUTH_EXTERNAL_GOOGLE_SECRET`
+   (shell env or `.env`), then `supabase stop && supabase start`. The provider
+   is already `enabled = true` in `supabase/config.toml`; with the vars unset
+   the CLI just warns and Google sign-in fails gracefully at Google's screen.
+4. **Hosted:** in the Supabase dashboard enable **Auth → Providers → Google**
+   and paste the same client ID/secret. Also confirm **Auth → URL
+   Configuration**: *Site URL* = your production URL, and add
+   `https://<your-domain>/auth/callback` to the redirect allow-list.
+
+Note: OAuth users get no `role` from Google. The `handle_new_user` trigger
+defaults them to `customer`; the `/onboarding/role` step then either confirms
+that or upgrades them to contractor through the same path as
+`/base-camp/become-a-pro` (any customer can upgrade there later).
+
+---
+
 ## Project structure
 
 ```

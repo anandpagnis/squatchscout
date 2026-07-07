@@ -5,17 +5,21 @@
 > covers what the project is, everything done so far, everything remaining, and
 > — most importantly — the traps that already cost time so you don't re-hit them.
 
-_Last updated: 2026-07-07, after the **shadcn dashboard integration** (user-requested interlude between 7.4 and 7.5) landed on branch **`feat/shadcn-dashboard-layout`** (commits `5c2a80f` + `fbf9beb`, local only — not yet pushed/PR'd). PR #5 (Phase 7.4) has been **merged** (`1fcaad5`). Next up: push/PR the shadcn branch, then Phase 7.5._
+_Last updated: 2026-07-07 (Windows session), after **Phase 7.7 (Google OAuth +
+role upgrade)** was built on branch **`feat/7.7-google-oauth`**, branched off
+`main` = `534c08b` (PR #6, shadcn dashboards). NOTE: **Phase 7.5 (slot picker,
+branch `feat/7.5-slot-picker-double-booking`, migration 08) was still an
+unmerged PR when 7.7 branched** — the two branches touch disjoint files except
+THIS handoff, which will conflict on whichever merges second (both edited the
+header + phase sections; take both sides). Next up: user merges 7.5 and 7.7,
+then Phase 7.6 (Stripe)._
 
-> **ENVIRONMENT CHANGED (2026-07-06):** development moved from the Windows
-> machine described in §2 to **macOS** (`/Users/anandp/Desktop/squatchscout`,
-> zsh). The Windows-specific gotchas in §2 (PowerShell, no gh CLI, Docker
-> named-pipe flake, CRLF noise) no longer apply. On this machine: **`gh` CLI IS
-> installed** (use it instead of the gh-api.sh curl helper), as are docker,
-> supabase CLI, pnpm 11.9, and Node 26 (CI still pins Node 22 — if a local
-> pass differs from CI, check the Node version first). Repo root is the working
-> directory itself — no doubled folder. Everything else (Supabase hosted vs
-> local, CI, branch protection, working rules) still applies as written.
+> **ENVIRONMENT (2026-07-07): back on the Windows machine.** The 2026-07-06
+> session ran on macOS, but development returned to Windows
+> (`c:\Users\aryan\squatchscout\squatchscout`, doubled folder name) — ALL the
+> Windows gotchas in §2 apply (PowerShell + Git Bash, NO gh CLI → use the REST
+> helper, Docker named-pipe flake, CRLF noise). If a future session lands on
+> the Mac instead, see git history for the macOS note this block replaced.
 
 ---
 
@@ -417,6 +421,77 @@ running" after falling to :3001 — just drive the existing one, it hot-reloads)
 CSS chunk — if a new rule doesn't apply, `touch` the file / hard-refresh before
 debugging the CSS itself.
 
+### Phase 7.7 — Google OAuth + role upgrade (DONE, on branch `feat/7.7-google-oauth`, PR pending user merge)
+
+**Step-0 finding that shaped the phase:** no upgrade-to-pro path existed, and
+there is no contractor "onboarding wizard" to reuse — for email pro signups the
+`handle_new_user` trigger creates a bare `contractor_profiles` row and the Den
+itself is the onboarding (under-review alert → den/settings profile →
+den/services → den/schedule → admin verification). Also, Google users are
+never "role-less": the trigger instantly defaults them to `customer` in
+`public.users` AND `app_metadata`, so first-timer detection uses
+**`user_metadata.role` absence** (email signups always set it; OAuth never
+does until they choose).
+
+**Migration `20260101000009_role_upgrade.sql`** (SCHEMA CHANGE — auto-deploys
+on merge): relaxes `guard_user_sensitive_fields()` (migration 00) with the same
+`auth.uid() is null` trusted-writer allowance as the mig-07 money guards.
+Before this, NO ONE but a logged-in admin could change `users.role` — the
+service role bypasses RLS but not triggers. Browser-originated self-escalation
+via PostgREST still raises (smoke-tested).
+
+**App changes:**
+- `src/app/onboarding/actions.ts` — `chooseRoleAction`, the single role
+  transition used by BOTH entry points. Customer choice = stamp
+  `user_metadata.role` only (client-forgeable but authority stays in
+  app_metadata/users.role — roleFromUser prefers app_metadata). Pro choice =
+  admin-client sequence: contractor_profiles upsert → users.role update →
+  `auth.admin.updateUserById` app_metadata+user_metadata sync, with rollback of
+  the role if the metadata sync fails (otherwise proxy [JWT] and requireRole
+  [DB] disagree → redirect loop).
+- `src/app/onboarding/role/page.tsx` (+ layout) — first-time OAuth role
+  choice; bounces anyone who already has a metadata role or isn't a customer.
+  `src/components/onboarding/role-select-form.tsx` mirrors signup's RoleTab UI.
+- `src/app/auth/callback/route.ts` — routes `user_metadata.role`-less users to
+  `/onboarding/role` after code exchange.
+- `src/app/base-camp/become-a-pro/page.tsx` + `become-pro-form.tsx` — upgrade
+  page for existing customers (warns Base Camp/booking history becomes
+  invisible after the switch — the single-role model makes upgrade a SWITCH;
+  the user accepted this trade-off explicitly for this phase). Ghost-button CTA
+  added on the Base Camp overview.
+- `supabase/config.toml` — `[auth.external.google] enabled = true`, reading
+  `SUPABASE_AUTH_EXTERNAL_GOOGLE_CLIENT_ID/_SECRET`. **Unset env vars are just
+  CLI warnings** — verified `supabase stop/start` + CI-style boot works without
+  them. `.env.example`, README ("Google OAuth" section: Google Cloud client,
+  redirect URIs local `http://127.0.0.1:54321/auth/v1/callback` / hosted
+  `https://<ref>.supabase.co/auth/v1/callback`, dashboard steps) and DEPLOY.md
+  updated. The hosted dashboard config is the USER's task (no prod access).
+- `/login?error=google` now shows a Google-specific notice.
+- `scripts/verify-rls.mjs` +2 (self-escalation rejected / service-role role
+  change allowed; **12 checks on this branch**); `scripts/verify-pages.mjs` +4
+  (become-a-pro renders; role-holding user bounced from /onboarding/role; anon
+  blocked; contractor blocked from become-a-pro; **27 checks on this branch**).
+  Counts differ from the 7.5 branch (14 rls / 23 pages) — both scripts will
+  need a trivial merge whichever lands second.
+
+**Verified:** typecheck ✓ lint ✓ db:reset applies mig 09 ✓ smoke:rls 12/12 ✓
+smoke:checkout 8/8 ✓ smoke:pages 27/27 ✓, plus a real-browser E2E
+(playwright-core + Edge): fresh user signed up WITHOUT role metadata (exactly
+what OAuth produces) → sees /onboarding/role → "I'm a pro" + business name →
+lands in /den with the profile visible in den/settings → bounced from
+/base-camp (proves JWT app_metadata synced); second fresh user chose customer →
+/base-camp, and /onboarding/role bounces afterwards. Real Google sign-in needs
+actual client creds (user's task) — the OAuth-specific piece not covered by
+automation is only Google's own redirect.
+
+**Gotchas hit this session (Windows):**
+- A sandboxed `pnpm dev` on this machine dies with a Turbopack panic
+  (`0xc0000142` spawning the PostCSS worker child process) → every page 500s.
+  Run the dev server OUTSIDE the sandbox (or let the user run it).
+- The wedged-dev-server-after-db:reset gotcha from 7.5 re-occurred (500s with
+  a stale server) — kill the node process on :3000 and restart before chasing
+  "bugs".
+
 ---
 
 ## 7. What remains (the rest of Phase 7)
@@ -427,19 +502,9 @@ Don't run ahead. Order (from the original build prompt, as amended):
 
 ### Phase 7.4 — Customer vs contractor component separation (DONE, merged as PR #5 — see §6)
 
-### Interlude — shadcn dashboards (DONE locally — see §6; needs push + PR + user merge)
+### Interlude — shadcn dashboards (DONE, merged as PR #6 — see §6)
 
-### Phase 7.5 — Booking slot picker + double-booking guard (NEXT)
-Build `components/booking/slot-picker.tsx`: reads a contractor's weekly
-availability + time-off (`availability`, `availability_blocks` tables), computes
-bookable slots for a service duration, date-picker + time-grid, disables
-taken/unavailable slots, loading/empty states. **Prevent double-booking at the DB
-layer** — add a migration with a btree_gist exclusion constraint OR a server-side
-overlap check (the audit flagged there is currently NO such guard, and
-`bookings_schedule_idx` is only on `scheduled_start`; a `(contractor_id,
-scheduled_start)` index would help). Integrate into the 4-step `/book` wizard;
-usable from both `/pros/[slug]` and `/book`. **This is a schema change → migration
-→ CI → careful (auto-deploys to prod).**
+### Phase 7.5 — Booking slot picker + double-booking guard (DONE, on PR — built on branch `feat/7.5-slot-picker-double-booking` in a parallel session; see that branch's HANDOFF for details)
 
 ### Phase 7.6 — Stripe integration
 Replace mock `src/lib/payments/provider.ts` with real Stripe, keeping the
@@ -456,13 +521,10 @@ aren't set** so `pnpm dev` works without keys. `payments` table already has
 `lib/supabase/admin.ts` (service-role) — and remember service_role now has grants
 (fixed in mig 07).
 
-### Phase 7.7 — Google OAuth completion
-`supabase/config.toml` references Google OAuth (currently `enabled=false`). Wire
-`components/auth/google-button.tsx` → Supabase Auth → `src/app/auth/callback/route.ts`.
-**Key gap:** `handle_new_user()` trigger (migration 06) reads `role` from
-`raw_user_meta_data`, which Google sign-ins won't have → every OAuth user silently
-becomes `customer`. Add a post-OAuth "customer or pro?" step for first-time OAuth
-users. Document redirect URLs + env vars in `.env.example` and README.
+### Phase 7.7 — Google OAuth + role upgrade (DONE, on PR — see §6)
+Remaining user-side task: create the Google Cloud OAuth client and configure
+it in the hosted Supabase dashboard (Auth → Providers → Google) — steps are in
+README → "Google OAuth".
 
 ### Phase 7.8 — Final pass
 Re-run the 7.1 placeholder audit; full click-through of both flows; `pnpm
@@ -497,8 +559,8 @@ any new env vars / setup steps.
 ## 9. Quick-start for a fresh agent
 
 ```bash
-# 1. Confirm where things are (macOS now — see the environment note at the top)
-cd /Users/anandp/Desktop/squatchscout && git branch --show-current && git log --oneline -5
+# 1. Confirm where things are (Windows — see the environment note at the top)
+cd /c/Users/aryan/squatchscout/squatchscout && git branch --show-current && git log --oneline -5
 
 # 2. Make sure main is current
 git checkout main && git pull origin main
@@ -517,15 +579,15 @@ pnpm smoke:rls && pnpm smoke:checkout && pnpm smoke:pages
 #    contractor: sasquatch.handyman@example.com (+5 more)
 #    admin:     admin@squatchscout.local
 
-# 6. Start the next phase (7.4 unless the user says otherwise) on a fresh branch,
-#    PR it through CI, hand back for review.
+# 6. Start the next phase (7.6 Stripe unless the user says otherwise) on a fresh
+#    branch, PR it through CI, hand back for review.
 ```
 
-**Latest on `main`:** `1fcaad5` (PR #5 merge — Phase 7.4). **Current work:** the shadcn
-dashboard integration on branch **`feat/shadcn-dashboard-layout`** (commits `5c2a80f` +
-`fbf9beb`, all checks green locally) — needs `git push -u origin`, a PR, and the user's
-merge; then **Phase 7.5** is next.
-**NOTE:** the user has **deleted the branch-protection ruleset** on `main` — pushes to
-`main` no longer require CI or review. CI still runs but does not gate. Recommend
-re-enabling protection before any schema phase (7.5+), since a migration on `main`
-auto-deploys to prod.
+**Latest on `main`:** `534c08b` (PR #6 merge — shadcn dashboards). **Open PRs
+awaiting the user:** Phase 7.5 (`feat/7.5-slot-picker-double-booking`, migration
+08) and Phase 7.7 (`feat/7.7-google-oauth`, migration 09) — independent
+branches; HANDOFF.md and the two verify scripts conflict trivially on whichever
+merges second. Then **Phase 7.6 (Stripe)** is next.
+**NOTE:** branch protection on `main` is still **OFF** (user's choice). CI runs
+but does not gate; merging either PR auto-deploys its migration to prod.
+Recommend re-enabling protection.
