@@ -10,7 +10,6 @@ import {
 } from "lucide-react";
 import { requireRole } from "@/lib/auth";
 import { brand } from "@/lib/brand";
-import { SiteHeader } from "@/components/brand/site-header";
 import { DashboardShell } from "@/components/dashboard/dashboard-shell";
 import type { DashNavItem } from "@/components/dashboard/dashboard-nav";
 
@@ -30,13 +29,15 @@ export default async function AdminLayout({
 }: {
   children: React.ReactNode;
 }) {
-  await requireRole("admin");
+  const profile = await requireRole("admin");
   return (
-    <>
-      <SiteHeader />
-      <DashboardShell area={brand.areas.admin} nav={NAV}>
-        {children}
-      </DashboardShell>
-    </>
+    <DashboardShell
+      area={brand.areas.admin}
+      areaKey="admin"
+      nav={NAV}
+      profile={profile}
+    >
+      {children}
+    </DashboardShell>
   );
 }

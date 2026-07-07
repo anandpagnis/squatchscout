@@ -70,7 +70,7 @@ export default function RootLayout({
     <html
       lang="en"
       data-scroll-behavior="smooth"
-      className={`${lato.variable} ${fraunces.variable} ${jetbrainsMono.variable} h-full antialiased`}
+      className={`${lato.variable} ${fraunces.variable} ${jetbrainsMono.variable} h-full font-sans antialiased`}
     >
       <body className="min-h-full flex flex-col bg-background text-foreground">
         {children}
