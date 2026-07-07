@@ -4,20 +4,17 @@ import { notFound } from "next/navigation";
 import { ArrowLeft, MapPin, CalendarClock, Hash, CheckCircle2 } from "lucide-react";
 import { getBooking } from "@/lib/data/bookings";
 import { StatusBadge } from "@/components/booking/status-badge";
+import { BookingMetaRow } from "@/components/booking/detail-rows";
+import { CustomerPriceCard } from "@/components/base-camp/booking-price-card";
+import { CustomerBookingActions } from "@/components/base-camp/booking-actions";
 import { Alert } from "@/components/ui/alert";
-import { Button } from "@/components/ui/button";
 import { buttonVariants } from "@/components/ui/button";
 import { Avatar } from "@/components/ui/avatar";
 import { Rating } from "@/components/ui/rating";
 import { ReviewForm } from "@/components/reviews/review-form";
 import { createClient } from "@/lib/supabase/server";
-import { cancelBooking } from "../../actions";
-import { formatPrice } from "@/lib/utils";
-import { brand } from "@/lib/brand";
 
 export const metadata: Metadata = { title: "Booking details" };
-
-const CANCELABLE = ["requested", "accepted", "scheduled"];
 
 export default async function BookingDetailPage({
   params,
@@ -116,13 +113,13 @@ export default async function BookingDetailPage({
         </div>
 
         <dl className="mt-6 space-y-3 text-sm">
-          <Detail icon={<Hash />} label="Booking"><span className="font-mono">{booking.booking_number}</span></Detail>
-          <Detail icon={<CalendarClock />} label="When">{when}</Detail>
-          <Detail icon={<MapPin />} label="Where">
+          <BookingMetaRow icon={<Hash />} label="Booking"><span className="font-mono">{booking.booking_number}</span></BookingMetaRow>
+          <BookingMetaRow icon={<CalendarClock />} label="When">{when}</BookingMetaRow>
+          <BookingMetaRow icon={<MapPin />} label="Where">
             {booking.address_line1
               ? `${booking.address_line1}, ${booking.city}, ${booking.state} ${booking.zip}`
               : "—"}
-          </Detail>
+          </BookingMetaRow>
         </dl>
 
         {booking.job_notes && (
@@ -133,29 +130,7 @@ export default async function BookingDetailPage({
         )}
       </div>
 
-      <div className="rounded-2xl border border-border bg-card p-6 shadow-card">
-        <h2 className="font-display text-lg font-bold">Price</h2>
-        {booking.quoted_price != null ? (
-          <dl className="mt-3 space-y-2 text-sm">
-            <PriceRow label="Service" value={formatPrice(booking.quoted_price)} />
-            {booking.platform_fee != null && (
-              <PriceRow label={`Platform fee (${Math.round(brand.platformFeeRate * 100)}%)`} value={formatPrice(booking.platform_fee)} />
-            )}
-            {booking.tip > 0 && <PriceRow label="Tip" value={formatPrice(booking.tip)} />}
-            <div className="my-1 border-t border-border" />
-            <PriceRow
-              label="Total"
-              value={formatPrice((booking.final_price ?? booking.quoted_price) + booking.tip)}
-              strong
-            />
-          </dl>
-        ) : (
-          <p className="mt-2 text-sm text-muted-foreground">
-            This is a quote-type job — {booking.contractor?.business_name ?? "the pro"} will send a
-            price to approve. No charge until you accept.
-          </p>
-        )}
-      </div>
+      <CustomerPriceCard booking={booking} />
 
       {booking.status === "completed" && !review && <ReviewForm bookingId={booking.id} />}
 
@@ -175,53 +150,7 @@ export default async function BookingDetailPage({
         </div>
       )}
 
-      <div className="flex flex-wrap gap-3">
-        <Link
-          href={`/base-camp/messages?contractor=${booking.contractor_id}`}
-          className={buttonVariants({ variant: "outline" })}
-        >
-          Message pro
-        </Link>
-        {CANCELABLE.includes(booking.status) && (
-          <form action={cancelBooking}>
-            <input type="hidden" name="id" value={booking.id} />
-            <Button type="submit" variant="ghost" className="text-destructive">
-              Cancel booking
-            </Button>
-          </form>
-        )}
-      </div>
-    </div>
-  );
-}
-
-function Detail({
-  icon,
-  label,
-  children,
-}: {
-  icon: React.ReactNode;
-  label: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="flex items-start gap-3">
-      <span className="mt-0.5 text-muted-foreground [&_svg]:size-4">{icon}</span>
-      <div>
-        <dt className="text-xs uppercase tracking-wide text-muted-foreground">{label}</dt>
-        <dd className="font-medium text-ink">{children}</dd>
-      </div>
-    </div>
-  );
-}
-
-function PriceRow({ label, value, strong }: { label: string; value: string; strong?: boolean }) {
-  return (
-    <div className="flex items-center justify-between">
-      <dt className="text-muted-foreground">{label}</dt>
-      <dd className={strong ? "font-mono text-base font-semibold text-ink" : "font-medium text-ink"}>
-        {value}
-      </dd>
+      <CustomerBookingActions booking={booking} />
     </div>
   );
 }

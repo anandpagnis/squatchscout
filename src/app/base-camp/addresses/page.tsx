@@ -4,7 +4,7 @@ import { getProfile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { DashboardHeader } from "@/components/dashboard/dashboard-shell";
 import { EmptyState } from "@/components/dashboard/empty-state";
-import { AddAddressForm } from "@/components/dashboard/add-address-form";
+import { AddAddressForm } from "@/components/base-camp/add-address-form";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { deleteAddress, setDefaultAddress } from "../actions";

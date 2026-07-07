@@ -5,7 +5,17 @@
 > covers what the project is, everything done so far, everything remaining, and
 > — most importantly — the traps that already cost time so you don't re-hit them.
 
-_Last updated: 2026-07-07, after the type-system rework + Phase 7.3 (landing page) went up as PR #3._
+_Last updated: 2026-07-06, after Phase 7.4 (persona component separation) went up as **PR #5** (awaiting user approve+merge). Next up: Phase 7.5._
+
+> **ENVIRONMENT CHANGED (2026-07-06):** development moved from the Windows
+> machine described in §2 to **macOS** (`/Users/anandp/Desktop/squatchscout`,
+> zsh). The Windows-specific gotchas in §2 (PowerShell, no gh CLI, Docker
+> named-pipe flake, CRLF noise) no longer apply. On this machine: **`gh` CLI IS
+> installed** (use it instead of the gh-api.sh curl helper), as are docker,
+> supabase CLI, pnpm 11.9, and Node 26 (CI still pins Node 22 — if a local
+> pass differs from CI, check the Node version first). Repo root is the working
+> directory itself — no doubled folder. Everything else (Supabase hosted vs
+> local, CI, branch protection, working rules) still applies as written.
 
 ---
 
@@ -253,6 +263,8 @@ forbids `useEffect(() => setState(...))` — close the mobile menu via `onClick`
 the links, not a pathname effect. (2) A dropped `>` on a `motion.div` opening tag
 gives a cascade of confusing JSX parse errors — check tag closing first.
 
+### Type system rework — Lato-anchored three-role pairing (DONE, MERGED via PR #3 → `be6481c`)
+**Branch `feat/type-system-and-landing`, PR #3** (bundled with Phase 7.3 below).
 ### Type system rework — Lato-anchored three-role pairing (DONE, MERGED via PR #3/#4)
 Bundled with Phase 7.3 below on branch `feat/type-system-and-landing`.
 Replaced Figtree-everywhere with a deliberate three-role split, user-specified:
@@ -276,6 +288,7 @@ class that would have overridden the new base rules — those were swept off
 h1/h2 elements are redundant-but-harmless. `font-bold` (700) is fine for Lato;
 for mono use `font-semibold` (600) — JetBrains Mono 700 isn't loaded.
 
+### Phase 7.3 — Landing page rebuild (DONE, MERGED via PR #3 → `be6481c`)
 ### Phase 7.3 — Landing page rebuild (DONE, MERGED via PR #3/#4)
 Full rewrite of `src/app/(marketing)/page.tsx` (still a server component; motion
 via the client `Reveal`/`Stagger` primitives):
@@ -303,6 +316,43 @@ smoke:pages 22/22 ✓. Visual check via headless Edge screenshots
 machine; scroll-entrance animations appear half-played in screenshots — that's a
 headless artifact, not a bug). Commits: `3803301` (type system), `cc2ad12` (7.3).
 
+### Phase 7.4 — Customer vs contractor component separation (DONE, on PR #5)
+Audit finding first: `components/dashboard/*` primitives (StatCard, EmptyState,
+DashboardShell/Nav) do NOT branch on role — nav items are injected per persona.
+The real cross-role tangle was **duplicated inline helpers in the four booking
+pages** (BookingGroup/JobGroup list rows, Detail/Row meta rows, and four
+near-identical price-row helpers across both detail pages + checkout-form +
+booking-wizard). Fix = extract persona components; **zero data-fetching or
+auth changes** (`requireRole()`/RLS untouched; verified by smoke suite).
+
+New structure:
+- **`src/components/base-camp/`** (NEW, customer persona — mirrors `components/den/`):
+  `booking-list.tsx` (`CustomerBookingGroup`), `booking-price-card.tsx`
+  (`CustomerPriceCard` — what the customer pays), `booking-actions.tsx`
+  (`CustomerBookingActions` — message pro / cancel). `add-address-form.tsx`
+  moved here from `components/dashboard/` (it was customer-only).
+- **`src/components/den/`** (contractor persona, extended): `job-list.tsx`
+  (`JobRequestCard` accept/decline + `JobGroup`), `job-payout-card.tsx`
+  (`JobPayoutCard` — what the pro earns), `job-status-actions.tsx`
+  (`JobStatusActions` — status-keyed accept/decline/start/complete forms).
+- **`src/components/booking/detail-rows.tsx`** (NEW, shared): `BookingMetaRow`
+  (icon/label meta row) + `PriceRow` (one implementation replacing all four
+  copies; superset props `strong`/`muted`, `text-right` dd). checkout-form and
+  booking-wizard import it as `Row`.
+- The four pages (`base-camp/bookings`, `base-camp/bookings/[id]`, `den/jobs`,
+  `den/jobs/[id]`) are now thin compositions (~330 lines of inline JSX removed).
+- `scripts/verify-pages.mjs` extended with `/den/jobs/[id]` (smoke:pages now 23).
+
+**Flagged, deliberately NOT changed (data layer, out of scope for a
+presentation phase):** `lib/data/bookings.ts` uses one `BASE` column list for
+both personas, so customers also fetch `contractor_payout` and pros fetch the
+customer's tip/total. RLS row-scopes access and nothing renders cross-role
+figures, but a column-split select would be a cheap hardening if wanted later.
+
+Verified: typecheck ✓ lint ✓ smoke:rls 10/10 ✓ smoke:checkout 8/8 ✓
+smoke:pages 23/23 ✓ (first run of the suite on the new macOS machine — local
+stack + db:reset worked with no Windows-era flakes).
+
 ---
 
 ## 7. What remains (the rest of Phase 7)
@@ -311,14 +361,9 @@ headless artifact, not a bug). Commits: `3803301` (type system), `cc2ad12` (7.3)
 The user is sending phase prompts **one at a time** and reviewing between each.
 Don't run ahead. Order (from the original build prompt, as amended):
 
-### Phase 7.4 — Customer vs contractor component separation (NEXT)
-Split shared `components/dashboard/*` that branch on role into persona-specific
-components where it improves clarity / prevents cross-role leakage. Keep genuine
-shared primitives (StatCard, EmptyState, DashboardShell). Booking UI especially:
-distinct customer view vs contractor view. **Presentation refactor only — confirm
-`requireRole()` + RLS still gate data access; do not change authorization.**
+### Phase 7.4 — Customer vs contractor component separation (DONE — see §6)
 
-### Phase 7.5 — Booking slot picker + double-booking guard
+### Phase 7.5 — Booking slot picker + double-booking guard (NEXT)
 Build `components/booking/slot-picker.tsx`: reads a contractor's weekly
 availability + time-off (`availability`, `availability_blocks` tables), computes
 bookable slots for a service duration, date-picker + time-grid, disables
@@ -386,10 +431,10 @@ any new env vars / setup steps.
 ## 9. Quick-start for a fresh agent
 
 ```bash
-# 1. Confirm where things are
-cd c:/Users/aryan/squatchscout/squatchscout && git branch --show-current && git log --oneline -5
+# 1. Confirm where things are (macOS now — see the environment note at the top)
+cd /Users/anandp/Desktop/squatchscout && git branch --show-current && git log --oneline -5
 
-# 2. If PR #3 not yet merged, ask the user to approve+merge it, then:
+# 2. Make sure main is current
 git checkout main && git pull origin main
 
 # 3. Bring the local stack up (Docker Desktop must be running)
@@ -410,6 +455,8 @@ pnpm smoke:rls && pnpm smoke:checkout && pnpm smoke:pages
 #    PR it through CI, hand back for review.
 ```
 
+**Latest on `main`:** `a6f84b7` (PR #4 merge). **Current work:** Phase 7.4 on branch
+`feat/7.4-persona-booking-components` (PR #5) — merge advances `main`; then **Phase 7.5** is next.
 **Current HEAD = `main` at `a6f84b7`** (PR #4 merge; includes type system + Phase 7.3 + this doc).
 Feature branch deleted locally. **NOTE:** the user has **deleted the branch-protection
 ruleset** on `main` — pushes to `main` no longer require CI or review. CI still runs but

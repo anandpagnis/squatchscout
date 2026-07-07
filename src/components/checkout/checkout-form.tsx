@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Alert } from "@/components/ui/alert";
 import { SubmitButton } from "@/components/auth/submit-button";
+import { PriceRow as Row } from "@/components/booking/detail-rows";
 import { cn, formatPrice } from "@/lib/utils";
 
 const round = (n: number) => Math.round(n * 100) / 100;
@@ -115,32 +116,6 @@ export function CheckoutForm({
           Demo checkout — no real card is charged.
         </p>
       </form>
-    </div>
-  );
-}
-
-function Row({
-  label,
-  value,
-  strong,
-  muted,
-}: {
-  label: string;
-  value: string;
-  strong?: boolean;
-  muted?: boolean;
-}) {
-  return (
-    <div className="flex items-center justify-between">
-      <dt className="text-muted-foreground">{label}</dt>
-      <dd
-        className={cn(
-          strong ? "font-mono text-base font-semibold text-ink" : "font-medium text-ink",
-          muted && "text-muted-foreground",
-        )}
-      >
-        {value}
-      </dd>
     </div>
   );
 }
