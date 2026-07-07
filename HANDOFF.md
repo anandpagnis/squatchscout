@@ -265,6 +265,8 @@ gives a cascade of confusing JSX parse errors — check tag closing first.
 
 ### Type system rework — Lato-anchored three-role pairing (DONE, MERGED via PR #3 → `be6481c`)
 **Branch `feat/type-system-and-landing`, PR #3** (bundled with Phase 7.3 below).
+### Type system rework — Lato-anchored three-role pairing (DONE, MERGED via PR #3/#4)
+Bundled with Phase 7.3 below on branch `feat/type-system-and-landing`.
 Replaced Figtree-everywhere with a deliberate three-role split, user-specified:
 
 - **Body / UI — Lato** (400 + 700; NOT a variable font, weights must be explicit
@@ -287,6 +289,7 @@ h1/h2 elements are redundant-but-harmless. `font-bold` (700) is fine for Lato;
 for mono use `font-semibold` (600) — JetBrains Mono 700 isn't loaded.
 
 ### Phase 7.3 — Landing page rebuild (DONE, MERGED via PR #3 → `be6481c`)
+### Phase 7.3 — Landing page rebuild (DONE, MERGED via PR #3/#4)
 Full rewrite of `src/app/(marketing)/page.tsx` (still a server component; motion
 via the client `Reveal`/`Stagger` primitives):
 - **Split dual-persona hero** — customer side left (display headline, CTAs to
@@ -454,3 +457,8 @@ pnpm smoke:rls && pnpm smoke:checkout && pnpm smoke:pages
 
 **Latest on `main`:** `a6f84b7` (PR #4 merge). **Current work:** Phase 7.4 on branch
 `feat/7.4-persona-booking-components` (PR #5) — merge advances `main`; then **Phase 7.5** is next.
+**Current HEAD = `main` at `a6f84b7`** (PR #4 merge; includes type system + Phase 7.3 + this doc).
+Feature branch deleted locally. **NOTE:** the user has **deleted the branch-protection
+ruleset** on `main` — pushes to `main` no longer require CI or review. CI still runs but
+does not gate. Recommend re-enabling protection before any schema phase (7.5+), since a
+migration on `main` auto-deploys to prod.
