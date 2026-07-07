@@ -182,5 +182,63 @@ const anon = createClient(URL, ANON, { auth: { persistSession: false } });
   );
 }
 
+// ── Double-booking guard (migration 20260101000008) ─────────────────────────
+// booking A ok → overlapping B same pro rejected (23P01) → same time other
+// pro ok → back-to-back same pro ok (half-open range).
+{
+  const { data: pros } = await admin
+    .from("contractor_profiles")
+    .select("id")
+    .limit(2);
+  const [proA, proB] = pros ?? [];
+  if (!proA || !proB) {
+    report("double-booking setup", false, "need 2 contractor profiles in seed");
+  } else {
+    const { data: { user: cust } } = await customer.auth.getUser();
+    const base = new Date(Date.now() + 30 * 24 * 3600 * 1000);
+    base.setUTCHours(17, 0, 0, 0);
+    const hours = (n) => new Date(base.getTime() + n * 3600 * 1000).toISOString();
+    const { data: svc } = await admin.from("services").select("id").limit(1).single();
+    const created = [];
+    const insert = async (contractorId, startH, endH) => {
+      const q = await customer
+        .from("bookings")
+        .insert({
+          customer_id: cust.id,
+          contractor_id: contractorId,
+          service_id: svc.id,
+          status: "requested",
+          scheduled_start: hours(startH),
+          scheduled_end: hours(endH),
+          address_line1: "1 Overlap Test Rd",
+          city: "Seattle", state: "WA", zip: "98101",
+          job_notes: "verify-rls double-booking check",
+        })
+        .select("id")
+        .single();
+      if (q.data?.id) created.push(q.data.id);
+      return q;
+    };
+
+    const a = await insert(proA.id, 0, 2); // 17:00–19:00
+    report("booking A (pro X, 17–19) succeeds", !a.error, a.error?.message);
+
+    const b = await insert(proA.id, 1, 3); // 18:00–20:00 overlaps A
+    report(
+      "overlapping booking B (pro X, 18–20) rejected with exclusion violation",
+      b.error?.code === "23P01",
+      b.error ? `${b.error.code}: ${b.error.message}` : "insert went through (BAD)",
+    );
+
+    const c = await insert(proB.id, 0, 2); // other pro, same time
+    report("same time, different pro succeeds", !c.error, c.error?.message);
+
+    const d = await insert(proA.id, 2, 4); // 19:00–21:00, back-to-back with A
+    report("same pro, back-to-back (19–21) succeeds", !d.error, d.error?.message);
+
+    if (created.length) await admin.from("bookings").delete().in("id", created);
+  }
+}
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

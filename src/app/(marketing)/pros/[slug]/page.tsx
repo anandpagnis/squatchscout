@@ -16,6 +16,7 @@ import {
   getContractorReviews,
 } from "@/lib/data/contractors";
 import { Avatar } from "@/components/ui/avatar";
+import { ProAvailabilityCard } from "@/components/booking/pro-availability-card";
 import { Rating } from "@/components/ui/rating";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
@@ -201,7 +202,15 @@ export default async function ProfilePage({
           </section>
         </div>
 
-        <aside className="lg:sticky lg:top-20 lg:self-start">
+        <aside className="space-y-6 lg:sticky lg:top-20 lg:self-start">
+          <ProAvailabilityCard
+            contractorId={pro.id}
+            services={services.map((cs) => ({
+              id: cs.service_id,
+              name: cs.service?.name ?? "Service",
+              durationMins: cs.service?.est_duration_mins ?? 120,
+            }))}
+          />
           <div className="rounded-2xl border border-border bg-card p-6 shadow-card">
             <p className="text-lg font-bold">Ready to book {pro.business_name}?</p>
             <p className="mt-1 text-sm text-muted-foreground">

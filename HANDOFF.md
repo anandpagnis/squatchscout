@@ -5,17 +5,20 @@
 > covers what the project is, everything done so far, everything remaining, and
 > — most importantly — the traps that already cost time so you don't re-hit them.
 
-_Last updated: 2026-07-07, after the **shadcn dashboard integration** (user-requested interlude between 7.4 and 7.5) landed on branch **`feat/shadcn-dashboard-layout`** (commits `5c2a80f` + `fbf9beb`, local only — not yet pushed/PR'd). PR #5 (Phase 7.4) has been **merged** (`1fcaad5`). Next up: push/PR the shadcn branch, then Phase 7.5._
+_Last updated: 2026-07-07 (later the same day), after **Phase 7.5 (booking slot
+picker + double-booking guard)** was built on branch
+**`feat/7.5-slot-picker-double-booking`**. PRs #5 (Phase 7.4) and #6 (shadcn
+dashboards) are both **merged**; `main` = `534c08b`. Next up: user reviews/merges
+the 7.5 PR, then Phase 7.6 (Stripe)._
 
-> **ENVIRONMENT CHANGED (2026-07-06):** development moved from the Windows
-> machine described in §2 to **macOS** (`/Users/anandp/Desktop/squatchscout`,
-> zsh). The Windows-specific gotchas in §2 (PowerShell, no gh CLI, Docker
-> named-pipe flake, CRLF noise) no longer apply. On this machine: **`gh` CLI IS
-> installed** (use it instead of the gh-api.sh curl helper), as are docker,
-> supabase CLI, pnpm 11.9, and Node 26 (CI still pins Node 22 — if a local
-> pass differs from CI, check the Node version first). Repo root is the working
-> directory itself — no doubled folder. Everything else (Supabase hosted vs
-> local, CI, branch protection, working rules) still applies as written.
+> **ENVIRONMENT (2026-07-07): back on the Windows machine.** The 2026-07-06
+> session ran on macOS, but development has returned to Windows
+> (`c:\Users\aryan\squatchscout\squatchscout`, doubled folder name) — ALL the
+> Windows gotchas in §2 apply again (PowerShell + Git Bash, NO gh CLI → use the
+> REST helper, Docker named-pipe flake, CRLF noise). If a future session lands
+> on the Mac instead, see git history for the macOS note this block replaced.
+> One correction to §2 observed today: `pnpm db:reset` completed with NO
+> trailing 502 on this machine — treat the 502 as possible but not guaranteed.
 
 ---
 
@@ -417,6 +420,66 @@ running" after falling to :3001 — just drive the existing one, it hot-reloads)
 CSS chunk — if a new rule doesn't apply, `touch` the file / hard-refresh before
 debugging the CSS itself.
 
+### Phase 7.5 — Booking slot picker + double-booking guard (DONE, on branch `feat/7.5-slot-picker-double-booking`, PR pending user merge)
+
+**Migration `20260101000008_booking_slot_guard.sql`** (SCHEMA CHANGE — auto-deploys
+to prod on merge):
+- Enables `btree_gist`; adds exclusion constraint **`bookings_no_double_booking`**:
+  no two overlapping bookings for the same contractor where
+  `status in ('requested','accepted','scheduled','in_progress')`, both schedule
+  columns non-null, `deleted_at is null`. Range is `tstzrange(scheduled_start,
+  scheduled_end, '[)')` — half-open, so back-to-back bookings sharing a boundary
+  are allowed. Terminal states (declined/cancelled/completed/refunded) release
+  the slot. `requested` DOES hold the slot (prevents two customers requesting the
+  same window; flag to the user if they'd rather only accepted+ hold).
+- Adds composite index `bookings_contractor_schedule_idx (contractor_id,
+  scheduled_start)` for the picker's range queries.
+- Seed data unaffected (all seeded bookings are `completed`).
+
+**App changes:**
+- `src/app/book/actions.ts` — `createBooking` catches Postgres `23P01`
+  (exclusion violation) → clean "That time slot was just taken…" message. New
+  server action `getWeekSlots` (zod-validated, ≤8 weeks ahead): reads
+  `availability` + `availability_blocks` with the user client (public read) and
+  booked ranges via the **admin client** (other customers' bookings are
+  RLS-hidden) but returns only slot statuses — no booking rows leak.
+- `src/lib/booking/slots.ts` (NEW) — pure slot computation (`computeDaySlots`,
+  30-min grid steps, statuses available/booked/blocked/past), unit-testable, no IO.
+- `src/components/booking/slot-picker.tsx` (NEW) — week nav + 7-day strip
+  (per-day open counts) + time grid. Taken slots are visibly disabled
+  (struck-through + `title` tooltip with the reason), not omitted. Skeleton
+  loading, "No availability this week" empty state. **Fetch state is keyed by
+  query and loading is derived** — do NOT refactor to `setState` in the effect
+  body (`react-hooks/set-state-in-effect`, the recurring lint trap).
+- `src/components/booking/booking-wizard.tsx` — step 2 now uses SlotPicker
+  (old free date input + hourly select removed); slot cleared when the chosen
+  service's duration changes; new `preselectStart` prop honors `?start=` deep
+  links. `/book` page passes `sp.start` through.
+- `src/components/booking/pro-availability-card.tsx` (NEW) + wired into
+  `/pros/[slug]` aside: public availability preview (service select when >1),
+  picking a slot deep-links to `/book?contractor&service&start` — both entry
+  points share the single `createBooking` action; the card never creates rows.
+- `scripts/verify-rls.mjs` extended with 4 double-booking checks (insert ok /
+  overlap rejected 23P01 / other-pro same time ok / back-to-back ok) →
+  **smoke:rls is now 14 checks**. smoke:pages stays 23 (no new routes).
+
+**Verified:** typecheck ✓ lint ✓ db:reset applies mig 08 cleanly ✓ gen:types
+regenerated ✓ smoke:rls 14/14 ✓ smoke:checkout 8/8 ✓ smoke:pages 23/23 ✓, plus a
+real-browser (playwright-core + Edge `channel:"msedge"`, works headless on this
+Windows machine) race test: customer A books a slot, customer B with a stale
+grid submits the same slot → clean rejection message, no raw DB error; booked
+slot then renders struck-through with "Already booked" tooltip; pro-card deep
+link verified.
+
+**Gotcha hit this session:** a long-running `pnpm dev` server can wedge with
+"Jest worker encountered 2 child process exceptions" (500s on some pages) after
+a `db:reset` — not an app bug; kill the node process on :3000 and restart dev
+before chasing page errors.
+
+**NOTE — branch protection:** still OFF (verified via API: no ruleset, no
+classic protection). The user explicitly chose to proceed without it for this
+phase. CI runs but does not gate; merge remains the user's action.
+
 ---
 
 ## 7. What remains (the rest of Phase 7)
@@ -427,19 +490,9 @@ Don't run ahead. Order (from the original build prompt, as amended):
 
 ### Phase 7.4 — Customer vs contractor component separation (DONE, merged as PR #5 — see §6)
 
-### Interlude — shadcn dashboards (DONE locally — see §6; needs push + PR + user merge)
+### Interlude — shadcn dashboards (DONE, merged as PR #6 — see §6)
 
-### Phase 7.5 — Booking slot picker + double-booking guard (NEXT)
-Build `components/booking/slot-picker.tsx`: reads a contractor's weekly
-availability + time-off (`availability`, `availability_blocks` tables), computes
-bookable slots for a service duration, date-picker + time-grid, disables
-taken/unavailable slots, loading/empty states. **Prevent double-booking at the DB
-layer** — add a migration with a btree_gist exclusion constraint OR a server-side
-overlap check (the audit flagged there is currently NO such guard, and
-`bookings_schedule_idx` is only on `scheduled_start`; a `(contractor_id,
-scheduled_start)` index would help). Integrate into the 4-step `/book` wizard;
-usable from both `/pros/[slug]` and `/book`. **This is a schema change → migration
-→ CI → careful (auto-deploys to prod).**
+### Phase 7.5 — Booking slot picker + double-booking guard (DONE, on PR — see §6)
 
 ### Phase 7.6 — Stripe integration
 Replace mock `src/lib/payments/provider.ts` with real Stripe, keeping the
@@ -521,11 +574,9 @@ pnpm smoke:rls && pnpm smoke:checkout && pnpm smoke:pages
 #    PR it through CI, hand back for review.
 ```
 
-**Latest on `main`:** `1fcaad5` (PR #5 merge — Phase 7.4). **Current work:** the shadcn
-dashboard integration on branch **`feat/shadcn-dashboard-layout`** (commits `5c2a80f` +
-`fbf9beb`, all checks green locally) — needs `git push -u origin`, a PR, and the user's
-merge; then **Phase 7.5** is next.
-**NOTE:** the user has **deleted the branch-protection ruleset** on `main` — pushes to
-`main` no longer require CI or review. CI still runs but does not gate. Recommend
-re-enabling protection before any schema phase (7.5+), since a migration on `main`
-auto-deploys to prod.
+**Latest on `main`:** `534c08b` (PR #6 merge — shadcn dashboards). **Current work:**
+Phase 7.5 on branch **`feat/7.5-slot-picker-double-booking`** (all checks green
+locally, PR open) — awaiting the user's review/merge; then **Phase 7.6 (Stripe)**.
+**NOTE:** branch protection on `main` is still **OFF** (user's choice, reconfirmed
+2026-07-07 before this schema phase). CI runs but does not gate; merging 7.5 will
+auto-deploy migration 08 to prod. Recommend re-enabling protection.
