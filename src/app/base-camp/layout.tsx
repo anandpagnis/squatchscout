@@ -9,7 +9,6 @@ import {
 } from "lucide-react";
 import { requireRole } from "@/lib/auth";
 import { brand } from "@/lib/brand";
-import { SiteHeader } from "@/components/brand/site-header";
 import { DashboardShell } from "@/components/dashboard/dashboard-shell";
 import type { DashNavItem } from "@/components/dashboard/dashboard-nav";
 
@@ -28,13 +27,15 @@ export default async function BaseCampLayout({
 }: {
   children: React.ReactNode;
 }) {
-  await requireRole("customer");
+  const profile = await requireRole("customer");
   return (
-    <>
-      <SiteHeader />
-      <DashboardShell area={brand.areas.customer} nav={NAV}>
-        {children}
-      </DashboardShell>
-    </>
+    <DashboardShell
+      area={brand.areas.customer}
+      areaKey="base-camp"
+      nav={NAV}
+      profile={profile}
+    >
+      {children}
+    </DashboardShell>
   );
 }
