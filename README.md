@@ -6,9 +6,13 @@ A two-sided local-services marketplace (think Urban Company / Thumbtack / TaskRa
 Pacific-Northwest **Bigfoot / "scout"** theme. Customers scout & book vetted local pros;
 contractors ("Scout Pros") list services and get paid; admins run the back office.
 
-This repo is **Phase 1 — the foundation**: project scaffold, brand design system, full
-database schema, seed data, and authentication with role-based access control. It runs
-**locally with no cloud accounts and no API keys**.
+The MVP is feature-complete through **Phase 7 (production hardening)**: auth (email +
+Google OAuth with a first-run role-choice step), browse/book with a real-availability
+slot picker and a DB-level double-booking guard, escrow-style checkout (mock payment
+provider — Stripe deliberately deferred), reviews, realtime messaging, notifications,
+per-persona dashboards (customer "Base Camp", contractor "Den", admin "Ranger Station"),
+SEO pages, CI smoke suites, and RLS hardening. It runs **locally with no cloud accounts
+and no API keys**.
 
 ---
 
@@ -20,10 +24,13 @@ database schema, seed data, and authentication with role-based access control. I
 | Styling | Tailwind CSS v4 · custom brand tokens · Framer Motion · Lucide icons |
 | Backend | Supabase (Postgres + Auth + Storage + Realtime + RLS), run locally via Docker |
 | Auth | Supabase Auth — email/password, Google OAuth (optional), email verification, RBAC |
-| UI library | Hand-rolled, brand-themed components (`src/components/ui`) |
+| UI library | shadcn (on `@base-ui/react`) primitives + brand-themed custom components (`src/components/ui`) |
 
-The brand palette (orange `#F47C20`, cream `#FCE5C4`, sage `#879068`, ink `#1A1A1A`),
-fonts (Poppins + Inter) and tokens live in `src/app/globals.css`.
+The design system ("trail lodge": warm paper ground, deep forest green, bark browns,
+amber accent) lives as tokens in `src/app/globals.css`. Type is a three-role pairing:
+**Lato** (body/UI), **Fraunces** (display, H1/H2 + wordmark), **JetBrains Mono**
+(prices, payouts, booking numbers). Dashboards use the shadcn Sidebar with per-persona
+theming (light / dark forest / dark bark).
 
 ---
 
@@ -99,8 +106,9 @@ the authenticated page click-through against a real dev server).
 **PRs into `main` must pass this workflow.** The hosted Supabase project auto-deploys
 migrations from `main` (GitHub integration, no staging tier), so this workflow is the
 only gate between a bad migration and production. Branch protection — requiring the
-`checks` job before merge — is enforced in GitHub repo settings
-(Settings → Branches → protection rule for `main`), not in this repo.
+`checks` job before merge — lives in GitHub repo settings (Settings → Branches →
+protection rule for `main`), not in this repo. **It is currently switched off**;
+re-enable it before opening the app to real users.
 
 ---
 
@@ -139,29 +147,40 @@ that or upgrades them to contractor through the same path as
 src/
   app/
     (auth)/            login, signup, forgot/reset password + server actions
-    (marketing)/       public site: home, /services, /for-contractors (+ header/footer)
+    (marketing)/       public site: home, /services, /pros, legal, blog (+ header/footer)
     auth/              OAuth callback + email-confirm route handlers
-    base-camp/         Customer dashboard  (role: customer)
+    onboarding/        first-time OAuth role choice (/onboarding/role)
+    book/              4-step booking wizard (+ slot server actions)
+    checkout/          escrow-style checkout (mock payment provider)
+    base-camp/         Customer dashboard  (role: customer; incl. /become-a-pro)
     den/               Contractor dashboard (role: contractor)
     admin/             Ranger Station       (role: admin)
     layout.tsx         root layout (fonts, metadata)
     not-found.tsx      branded 404
   components/
-    ui/                Button, Input, Card, Badge, Alert, Avatar, Skeleton…
-    brand/             Logo, SiteHeader, SiteFooter, CategoryIcon
+    ui/                shadcn primitives (Button, Card, Sidebar, Sheet, Table…) + brand variants
+    brand/             Logo, SiteHeader, SiteFooter, UserMenu, CategoryIcon
     auth/              auth forms (client) + submit/google buttons
-    dashboard/         DashboardShell, nav, StatCard, EmptyState
+    onboarding/        role-select + become-a-pro forms
+    dashboard/         DashboardShell (shadcn Sidebar), nav, StatCard, EmptyState
+    base-camp/         customer persona: booking list / price card / actions
+    den/               contractor persona: job list / payout card / status actions
+    booking/           booking wizard, slot picker, pro availability card, shared rows
+    motion/            Reveal / Stagger framer-motion primitives
   lib/
     supabase/          browser + server + proxy + admin clients
     auth.ts            getUser / getProfile / requireRole (server)
     roles.ts           pure role helper (used by Edge proxy)
+    booking/slots.ts   pure slot-grid computation (no IO)
     brand.ts           brand constants & microcopy
     catalog.ts         canonical service categories (static UI)
+    payments/          PaymentProvider interface + mock provider
     validations.ts     zod schemas
   proxy.ts             Edge middleware: session refresh + RBAC route guards
+scripts/               smoke suites: verify-rls / verify-checkout / verify-pages
 supabase/
   config.toml          local stack config (auth URLs, storage buckets, Google OAuth)
-  migrations/          full schema (enums, ~25 tables, indexes, triggers, RLS)
+  migrations/          full schema (enums, ~25 tables, indexes, triggers, RLS; 10 files)
   seed.sql             service catalog + demo users / pros / bookings / reviews
 ```
 
@@ -194,6 +213,7 @@ supabase/
 | **4** | Checkout + payments (mock provider) | ✅ |
 | **5** | Reviews / messaging / notifications | ✅ |
 | **6** | SEO pages + local landing + admin tooling | ✅ |
+| **7** | Production hardening: RLS/trigger guards, CI smoke suites, design system + landing rebuild, persona component split, shadcn dashboards, slot picker + double-booking guard, Google OAuth + role upgrade | ✅ (7.6 Stripe deferred) |
 
 What's built per phase:
 
@@ -213,7 +233,10 @@ What's built per phase:
 
 ### Wiring real integrations later
 Payments use a **mock provider** so checkout works end-to-end locally (no card charged).
-Stripe Connect, Google Maps and email (Resend) slot in via env vars (see `.env.example`) —
-swap `getPaymentProvider()` in `src/lib/payments/provider.ts` for a Stripe implementation.
-To enable Google sign-in, set the two `SUPABASE_AUTH_EXTERNAL_GOOGLE_*` vars, flip
-`enabled = true` under `[auth.external.google]` in `supabase/config.toml`, and restart Supabase.
+**Stripe integration (Phase 7.6) was deliberately deferred** — the `PaymentProvider`
+interface in `src/lib/payments/provider.ts` is the seam: implement a Stripe Connect
+provider and return it from `getPaymentProvider()` when `STRIPE_SECRET_KEY` is set.
+Google Maps and email (Resend) likewise slot in via env vars (see `.env.example`).
+Google sign-in is already `enabled = true` in `supabase/config.toml` — it just needs
+the two `SUPABASE_AUTH_EXTERNAL_GOOGLE_*` vars (local) or the dashboard provider config
+(hosted); see "Google OAuth" above.
