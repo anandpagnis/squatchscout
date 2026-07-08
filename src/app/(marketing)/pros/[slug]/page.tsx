@@ -203,6 +203,8 @@ export default async function ProfilePage({
         </div>
 
         <aside className="space-y-6 lg:sticky lg:top-20 lg:self-start">
+          {/* The hero's "Book now" is the generic fallback CTA; this card owns
+              the contextual slot-picking path — don't add another book button here. */}
           <ProAvailabilityCard
             contractorId={pro.id}
             services={services.map((cs) => ({
@@ -211,18 +213,6 @@ export default async function ProfilePage({
               durationMins: cs.service?.est_duration_mins ?? 120,
             }))}
           />
-          <div className="rounded-2xl border border-border bg-card p-6 shadow-card">
-            <p className="text-lg font-bold">Ready to book {pro.business_name}?</p>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Pick a service and time — pay securely when you confirm.
-            </p>
-            <Link
-              href={`/book?contractor=${pro.id}`}
-              className={cn(buttonVariants({ variant: "primary", size: "lg" }), "mt-5 w-full")}
-            >
-              Book now
-            </Link>
-          </div>
         </aside>
       </div>
     </>
