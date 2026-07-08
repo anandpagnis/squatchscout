@@ -4,14 +4,11 @@ The app runs on **Vercel** (Next.js host) + a **hosted Supabase project** (Postg
 Auth + Storage). The local Supabase stack is for development only — Vercel can't reach
 `127.0.0.1`, so production needs a cloud Supabase project.
 
-## 0. Push to GitHub
-The repo is already committed locally. Authenticate the GitHub CLI once, then create
-the remote and push:
-```bash
-gh auth login          # GitHub.com → HTTPS → Login with a web browser
-gh repo create squatchscout --private --source=. --remote=origin --push
-```
-(Or create an empty repo on github.com and `git remote add origin <url> && git push -u origin main`.)
+> **Current state:** the repo lives at `github.com/anandpagnis/squatchscout` and the
+> hosted Supabase project is connected via the **GitHub integration** — every migration
+> merged to `main` auto-deploys to the production database (no staging tier, no undo;
+> CI is the only gate). The Vercel deploy of the Next.js app itself is the remaining
+> step this document covers.
 
 ## 1. Create a hosted Supabase project
 1. At [supabase.com](https://supabase.com) → **New project**. Note the **project ref**
@@ -22,9 +19,11 @@ gh repo create squatchscout --private --source=. --remote=origin --push
    - **service_role** key → `SUPABASE_SERVICE_ROLE_KEY` (server-only, keep secret)
 
 ## 2. Push the schema (and optionally the seed)
+With the GitHub integration connected (current setup), migrations on `main` deploy
+automatically — skip `db push`. For a fresh project without the integration:
 ```bash
 supabase link --project-ref <your-project-ref>     # prompts for DB password
-supabase db push                                   # applies all 7 migrations
+supabase db push                                   # applies all 10 migrations
 
 # Optional: load demo data (categories, services, demo users/pros/reviews).
 # Skip for a clean production DB.
@@ -69,8 +68,11 @@ vercel --prod
 | `SUPABASE_SERVICE_ROLE_KEY` | Supabase service_role key (secret) |
 | `NEXT_PUBLIC_SITE_URL` | `https://<your-app>.vercel.app` |
 | `NEXT_PUBLIC_PLATFORM_FEE_RATE` | `0.15` |
+| `NEXT_PUBLIC_DEMO_MODE` | `true` to hide footer links to placeholder blog/legal pages |
 
-Optional (features stay in mock/disabled mode until set): `STRIPE_SECRET_KEY`,
+Optional / reserved for future integrations (the app runs in mock mode without them):
+`STRIPE_SECRET_KEY` (Stripe — **Phase 7.6, deliberately deferred**; setting it today
+only flips the `isMockPayments` flag, there is no real Stripe provider yet),
 `STRIPE_WEBHOOK_SECRET`, `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`,
 `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY`, `RESEND_API_KEY`, `EMAIL_FROM`.
 

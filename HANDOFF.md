@@ -5,13 +5,14 @@
 > covers what the project is, everything done so far, everything remaining, and
 > — most importantly — the traps that already cost time so you don't re-hit them.
 
-_Last updated: 2026-07-07 (Windows session), after merging `main` (now
-`ab6f4f7` — **Phase 7.5 merged as PR #7**) into branch
-**`feat/7.7-google-oauth`** (Phase 7.7, Google OAuth + role upgrade, **open as
-PR #8**). 7.5 and 7.7 were built as parallel PRs off `534c08b`; the predicted
-HANDOFF.md + verify-rls.mjs conflicts were resolved in that merge commit
-(both sides kept). Next up: user reviews/merges PR #8, then Phase 7.6
-(Stripe)._
+_Last updated: 2026-07-08 (Windows session), after **Phase 7.8 (final pass)**
+on branch **`feat/7.8-final-pass`** off `main` at `4eb041b` (PR #8 / Phase 7.7
+merged — migration 09 in prod). 7.8 = placeholder re-audit + full E2E
+click-through of both personas + OAuth role flow + clean build + docs sync.
+**Phase 7.6 (Stripe) was DELIBERATELY SKIPPED/DEFERRED by the user** — the
+mock `PaymentProvider` remains in place. Do NOT assume Stripe is done, and do
+NOT silently pick it up in a future session; it happens only when the user
+asks for it (see §7)._
 
 > **ENVIRONMENT (2026-07-07): back on the Windows machine.** The 2026-07-06
 > session ran on macOS, but development has returned to Windows
@@ -553,6 +554,56 @@ before chasing page errors.
 classic protection). The user explicitly chose to proceed without it for this
 phase. CI runs but does not gate; merge remains the user's action.
 
+### Phase 7.8 — Final pass (DONE, this session 2026-07-08, branch `feat/7.8-final-pass`)
+
+**Audit (7.1 re-run):** `src/` grepped for TODO/FIXME/lorem/placeholder/console.log/
+secrets — clean. All `placeholder` hits are HTML input attributes; the four
+`console.error` calls in `checkout/actions.ts` are the deliberate 7.1.5 error
+surfacing. `/legal/terms`, `/legal/privacy`, `/blog` remain self-declared
+placeholders and are still correctly gated behind `NEXT_PUBLIC_DEMO_MODE` in
+footer + signup fine-print (survived the 7.4/shadcn/OAuth churn). No new
+placeholders crept in.
+
+**Full E2E click-through** (scratchpad playwright-core + Edge script, 21 checks
++ 1 re-check, all verified — review/message rows confirmed in DB):
+- Customer: login → /services → category → pro profile → /book → slot picker
+  (picked real available slot) → confirm → booking `requested`.
+- Contractor: accept job → (customer pays) → start → complete → earnings shows
+  payout (mock).
+- Customer: "Pay & schedule" → mock checkout (`?paid=1`, demo notice shown) →
+  leave 5★ review → message pro (message visible both sides).
+- Contractor: reply to review (reply renders on den/reviews).
+- OAuth analogue: admin-created user with NO `user_metadata.role` → sees
+  /onboarding/role → "Continue to Base Camp" → lands /base-camp → revisiting
+  /onboarding/role bounces (returning users not re-prompted). Real Google
+  redirect still needs the user's Google Cloud creds (unchanged user-side task).
+- Rough edges found: only one, cosmetic — the review form's success alert
+  ("Thanks for the review") isn't seen because submission revalidates the page
+  straight into the "Your review" card. Not broken; left as-is.
+
+**Verification:** typecheck ✓ lint ✓ **`pnpm build` ✓ (zero warnings)**
+smoke:rls 16/16 ✓ smoke:checkout 8/8 ✓ smoke:pages 27/27 ✓.
+
+**Docs synced:** README (status paragraph, tech-stack/typography, project
+structure, Phase 7 roadmap row, branch-protection-currently-OFF note, Stripe
+deferred note), DEPLOY.md (GitHub-integration reality note, 10 migrations,
+DEMO_MODE var, Stripe vars marked deferred), `.env.example` (integrations
+comment now states Stripe 7.6 deferred; only STRIPE_SECRET_KEY is read — and
+only for the `isMockPayments` flag; other Stripe/Maps/Resend vars reserved,
+unread). Env sync verified by grep: every `process.env.*` in src/scripts is in
+`.env.example`; `SUPABASE_AUTH_EXTERNAL_GOOGLE_*` are consumed by config.toml.
+
+**Deploy target note:** the Next.js host is **documented as Vercel** in
+DEPLOY.md but no Vercel project exists yet as far as this machine can tell —
+treat "Vercel" as the default assumption, confirm with the user before first
+deploy.
+
+**Session gotchas (Windows, again):** Docker Desktop pipe died mid-session
+(known flake) — relaunch + poll `docker info` fixed it; after relaunch the
+Supabase containers came back on their own (db:start errored "container not
+ready" while auth already answered 200 — harmless). Sandboxed Bash can't reach
+127.0.0.1 ports — run smoke suites/dev server unsandboxed.
+
 ---
 
 ## 7. What remains (the rest of Phase 7)
@@ -567,8 +618,11 @@ Don't run ahead. Order (from the original build prompt, as amended):
 
 ### Phase 7.5 — Booking slot picker + double-booking guard (DONE, merged as PR #7 — see §6)
 
-### Phase 7.6 — Stripe integration
-Replace mock `src/lib/payments/provider.ts` with real Stripe, keeping the
+### Phase 7.6 — Stripe integration (**DELIBERATELY SKIPPED/DEFERRED — NOT DONE**)
+**The user chose to defer this phase; 7.8 was run without it.** The mock
+`PaymentProvider` is still what checkout uses. Do not treat it as done, and do
+not start it unprompted — wait for the user to explicitly ask. Spec when they
+do: replace mock `src/lib/payments/provider.ts` with real Stripe, keeping the
 `PaymentProvider` interface. Stripe Connect (Express) onboarding from
 `den/settings` (store `stripe_account_id`, check `charges_enabled`/
 `payouts_enabled` — columns already exist on `contractor_profiles`). PaymentIntents
@@ -582,15 +636,25 @@ aren't set** so `pnpm dev` works without keys. `payments` table already has
 `lib/supabase/admin.ts` (service-role) — and remember service_role now has grants
 (fixed in mig 07).
 
-### Phase 7.7 — Google OAuth + role upgrade (DONE, on PR — see §6)
+### Phase 7.7 — Google OAuth + role upgrade (DONE, merged as PR #8 → `4eb041b` — see §6)
 Remaining user-side task: create the Google Cloud OAuth client and configure
 it in the hosted Supabase dashboard (Auth → Providers → Google) — steps are in
 README → "Google OAuth".
 
-### Phase 7.8 — Final pass
-Re-run the 7.1 placeholder audit; full click-through of both flows; `pnpm
-typecheck && pnpm lint && pnpm build` clean; update `README.md` + `DEPLOY.md` with
-any new env vars / setup steps.
+### Phase 7.8 — Final pass (DONE, this session — see §6)
+
+### Honest MVP status after 7.8
+Everything in the product works end-to-end **except payments are mock** (no
+real money moves). Before a genuine pilot launch the known gaps are:
+1. **Stripe (7.6)** — deferred, the big one.
+2. **Legal/blog placeholder copy** — needs counsel-reviewed terms/privacy
+   (currently hidden by `NEXT_PUBLIC_DEMO_MODE=true`).
+3. **Google OAuth prod config** — user-side: Google Cloud client + Supabase
+   dashboard (README → "Google OAuth").
+4. **Branch protection OFF** — re-enable before more schema work.
+5. **Vercel deploy** — documented but not yet performed/confirmed.
+6. (Minor, flagged in 7.4) `lib/data/bookings.ts` shares one column list across
+   personas — cheap hardening if wanted.
 
 ---
 
@@ -640,15 +704,15 @@ pnpm smoke:rls && pnpm smoke:checkout && pnpm smoke:pages
 #    contractor: sasquatch.handyman@example.com (+5 more)
 #    admin:     admin@squatchscout.local
 
-# 6. Start the next phase (7.6 Stripe unless the user says otherwise) on a fresh
-#    branch, PR it through CI, hand back for review.
+# 6. Phase 7 is complete except 7.6 (Stripe, deliberately deferred — wait for
+#    the user to ask). Any new work: fresh branch off main, PR through CI,
+#    hand back for review.
 ```
 
-**Latest on `main`:** `ab6f4f7` (PR #7 merge — Phase 7.5, migration 08 now in
-prod). **Current work:** Phase 7.7 on branch **`feat/7.7-google-oauth`** (PR
-#8, migration 09, main merged in + conflicts resolved) — awaiting the user's
-review/merge; then **Phase 7.6 (Stripe)**.
+**Latest on `main`:** `4eb041b` (PR #8 merge — Phase 7.7, migration 09 in
+prod). **Current work:** Phase 7.8 (final pass, no schema changes) on branch
+**`feat/7.8-final-pass`** — PR open, awaiting the user's review/merge. After
+that Phase 7 is done apart from the deliberately deferred **7.6 (Stripe)**.
 **NOTE:** branch protection on `main` is still **OFF** (user's choice,
-reconfirmed 2026-07-07 before these schema phases). CI runs but does not gate;
-merging PR #8 auto-deploys migration 09 to prod. Recommend re-enabling
-protection.
+reconfirmed 2026-07-07). CI runs but does not gate. Recommend re-enabling
+protection before any further schema work.
